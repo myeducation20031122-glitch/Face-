@@ -1,13 +1,13 @@
 import streamlit as st
+import face_recognition
 from PIL import Image, ImageDraw
 import cloudinary
 import cloudinary.uploader
 import io
-import mediapipe as mp
-from datetime import datetime
 import numpy as np
+from datetime import datetime
 
-# Cloudinary Config (ඔයාගේ Keys)
+# Cloudinary Config
 cloudinary.config( 
   cloud_name = "dpmlwaai1", 
   api_key = "595869732658717", 
@@ -15,68 +15,61 @@ cloudinary.config(
   secure = True
 )
 
-# MediaPipe Face Mesh Setup (ලයිට් වර්ෂන් එක)
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+st.set_page_config(page_title="BIO-SHIELD ELITE", layout="wide")
+st.title("🛡️ BIO-SHIELD v4.0 (The Final Fix)")
 
-st.set_page_config(page_title="BIO-SHIELD FORENSIC", layout="wide")
-st.title("🛡️ BIO-SHIELD v3.5 (Forensic Edition)")
+menu = st.sidebar.selectbox("Navigation", ["👤 Register Identity", "🔍 Intelligence Logs"])
 
-menu = st.sidebar.selectbox("Menu", ["👤 Register Identity", "🔍 Intelligence Logs"])
-
-def draw_mesh(image):
-    """මුහුණේ ලක්ෂණ හඳුනාගෙන ඉරි/තිත් ඇඳීම"""
-    img_array = np.array(image)
-    results = face_mesh.process(img_array)
-    draw = ImageDraw.Draw(image)
+def apply_forensic_mesh(image_file):
+    # පින්තූරය load කරගැනීම
+    image = face_recognition.load_image_file(image_file)
+    # මුහුණේ ලක්ෂණ සෙවීම (Eyes, Nose, Mouth)
+    face_landmarks_list = face_recognition.face_landmarks(image)
     
-    if results.multi_face_landmarks:
-        for face_landmarks in results.multi_face_landmarks:
-            for landmark in face_landmarks.landmark:
-                # තිත් ඇඳීම
-                x = landmark.x * image.width
-                y = landmark.y * image.height
-                draw.ellipse([x-1, y-1, x+1, y+1], fill="#00FF00") # කොළ පාට තිත්
-        return image, True
-    return image, False
+    pil_image = Image.fromarray(image)
+    d = ImageDraw.Draw(pil_image)
+    
+    face_found = False
+    for face_landmarks in face_landmarks_list:
+        face_found = True
+        # මුහුණේ හැම ලක්ෂණයක්ම ඉරි වලින් ඇඳීම
+        for facial_feature in face_landmarks.keys():
+            d.line(face_landmarks[facial_feature], fill=(0, 255, 0), width=2)
+            
+    return pil_image, face_found
 
 if menu == "👤 Register Identity":
-    name = st.text_input("Target Name:")
-    img_file = st.camera_input("Biometric Scan")
+    name = st.text_input("Person Name:")
+    snap = st.camera_input("Biometric Scan")
     
-    if img_file and name:
-        raw_image = Image.open(img_file)
-        
-        with st.spinner("Analyzing Biomatrix..."):
-            # මූණේ ලක්ෂණ අඳිනවා
-            processed_img, face_found = draw_mesh(raw_image)
+    if snap and name:
+        with st.spinner("Executing AI Forensic Mesh..."):
+            processed_img, found = apply_forensic_mesh(snap)
             
-            # Bytes වලට හරවනවා
-            img_byte_arr = io.BytesIO()
-            processed_img.save(img_byte_arr, format='JPEG')
-            final_bytes = img_byte_arr.getvalue()
+            # Bytes වලට හරවා ගැනීම
+            buf = io.BytesIO()
+            processed_img.save(buf, format='JPEG')
             
-            # Upload කිරීම
+            # Cloudinary Upload
             res = cloudinary.uploader.upload(
-                final_bytes,
-                folder="bioshield_forensic",
-                context={"name": name, "face_detected": str(face_found), "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                buf.getvalue(),
+                folder="bioshield_v4",
+                context={"name": name, "face": str(found), "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             )
             
             st.success(f"Archived: {name}")
-            st.image(processed_img, caption="Forensic Mesh Applied", width=500)
+            st.image(processed_img, caption="AI Landmarks Applied", width=500)
 
 elif menu == "🔍 Intelligence Logs":
-    st.header("Global Database Logs")
+    st.header("Cloud Security Logs")
     try:
         import cloudinary.api
-        results = cloudinary.api.resources(type="upload", prefix="bioshield_forensic", context=True)
+        res = cloudinary.api.resources(type="upload", prefix="bioshield_v4", context=True)
         cols = st.columns(3)
-        for i, res in enumerate(results.get('resources', [])):
+        for i, item in enumerate(res.get('resources', [])):
             with cols[i % 3]:
-                st.image(res['secure_url'], use_container_width=True)
-                ctx = res.get('context', {}).get('custom', {})
-                st.write(f"👤 **{ctx.get('name')}**")
-                st.caption(f"📅 {ctx.get('time')}")
+                st.image(item['secure_url'], use_container_width=True)
+                info = item.get('context', {}).get('custom', {})
+                st.write(f"👤 {info.get('name')}")
     except:
-        st.info("Searching for records...")
+        st.info("No logs found.")
