@@ -1,6 +1,5 @@
 streamlit
 cloudinary
+face-recognition
 Pillow
-mediapipe
 numpy
-opencv-python-headless
