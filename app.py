@@ -18,86 +18,59 @@ cloudinary.config(
 
 # AI Models Setup
 mp_face_mesh = mp.solutions.face_mesh
-mp_pose = mp.solutions.pose
 
-# --- 2. CORE FUNCTIONS ---
-
-def get_biomatrix_summary(image):
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    with mp_face_mesh.FaceMesh(static_image_mode=True) as face_mesh, \
-         mp_pose.Pose(static_image_mode=True) as pose:
-        f_res = face_mesh.process(image_rgb)
-        p_res = pose.process(image_rgb)
-        has_face = "Yes" if f_res.multi_face_landmarks else "No"
-        has_pose = "Yes" if p_res.pose_landmarks else "No"
-        return has_face, has_pose
-
-def save_to_cloudinary(frame, person_name, category):
+# --- 2. FUNCTIONS ---
+def save_to_cloud(frame, person_name, category):
     _, buffer = cv2.imencode('.jpg', frame)
-    has_f, has_p = get_biomatrix_summary(frame)
-    
-    # Metadata ඇතුළුව Upload කිරීම
+    # Metadata එකතු කරලා Upload කරනවා (Firebase ඕනෙම නෑ)
     res = cloudinary.uploader.upload(
         buffer.tobytes(), 
         folder = "bioshield_v2",
-        context = f"name={person_name}|cat={category}|face={has_f}|pose={has_p}|time={datetime.now().strftime('%H:%M:%S')}",
+        context = {"name": person_name, "type": category, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
         tags = [category, person_name]
     )
     return res['secure_url']
 
-# --- 3. UI DESIGN ---
-st.sidebar.markdown("<h1 style='color: #00FF00;'>🛡️ BIO-SHIELD v2.5</h1>", unsafe_allow_html=True)
-menu = st.sidebar.radio("Main Menu", ["🔐 Admin Access", "👤 Register Profile", "📡 Live Monitor", "🔍 Search Logs"])
+# --- 3. UI ---
+st.set_page_config(page_title="BIO-SHIELD", layout="wide")
+st.sidebar.title("🛡️ BIO-SHIELD v2.5")
+menu = st.sidebar.selectbox("Menu", ["🔐 Admin", "👤 Register", "📡 Monitor", "🔍 Logs"])
 
 if 'unlocked' not in st.session_state: st.session_state.unlocked = False
 
-# --- 4. NAVIGATION LOGIC ---
+# --- 4. NAVIGATION ---
+if menu == "🔐 Admin":
+    st.header("Admin Login")
+    if st.button("Unlock System"):
+        st.session_state.unlocked = True
+        st.success("Unlocked!")
 
-if menu == "🔐 Admin Access":
-    st.header("Admin Master Control")
-    if not st.session_state.unlocked:
-        snap = st.camera_input("Scan Face")
-        if snap:
-            st.session_state.unlocked = True
-            st.success("Identity Verified. Console Unlocked.")
-            st.rerun()
-    else:
-        st.success("Admin Mode: ACTIVE")
-        if st.button("Secure Logout"):
-            st.session_state.unlocked = False
-            st.rerun()
-
-elif menu == "👤 Register Profile":
+elif menu == "👤 Register":
     if st.session_state.unlocked:
-        st.header("Register New Identity")
-        name = st.text_input("Person Name:")
-        cat = st.selectbox("Category", ["Staff", "VIP", "Visitor"])
+        st.header("New Registration")
+        name = st.text_input("Name:")
         img_file = st.camera_input("Biometric Scan")
         if img_file and name:
             img = cv2.imdecode(np.frombuffer(img_file.read(), np.uint8), 1)
-            url = save_to_cloudinary(img, name, cat)
-            st.success(f"Biomatrix Encrypted & Saved for {name}")
+            url = save_to_cloud(img, name, "Staff")
+            st.success(f"Saved to Cloud: {name}")
             st.image(url, width=300)
-    else: st.error("Access Denied! Login as Admin.")
+    else: st.error("Login as Admin first!")
 
-elif menu == "📡 Live Monitor":
-    st.header("Automated Surveillance")
-    st.info("System is monitoring. Unknown users are automatically archived.")
-    live_snap = st.camera_input("Surveillance Feed")
+elif menu == "📡 Monitor":
+    st.header("Live Surveillance")
+    live_snap = st.camera_input("Watch")
     if live_snap:
         img = cv2.imdecode(np.frombuffer(live_snap.read(), np.uint8), 1)
         rand_id = f"Unknown_{int(time.time())}"
-        save_to_cloudinary(img, rand_id, "Intruder")
-        st.warning(f"Intruder Detected: {rand_id} logged to cloud.")
+        save_to_cloud(img, rand_id, "Intruder")
+        st.warning(f"Intruder Detected & Logged!")
 
-elif menu == "🔍 Search Logs":
+elif menu == "🔍 Logs":
     st.header("Cloudinary Secure Logs")
     try:
-        resources = cloudinary.api.resources(type="upload", prefix="bioshield_v2", context=True, max_results=12)
-        cols = st.columns(3)
-        for i, res in enumerate(resources.get('resources', [])):
-            with cols[i % 3]:
-                st.image(res['secure_url'], use_container_width=True)
-                ctx = res.get('context', {}).get('custom', {})
-                st.caption(f"ID: {res['public_id']}")
-    except: st.error("No logs found yet.")
+        resources = cloudinary.api.resources(type="upload", prefix="bioshield_v2", max_results=10)
+        for res in resources.get('resources', []):
+            st.image(res['secure_url'], width=300)
+            st.caption(f"File: {res['public_id']}")
+    except: st.write("No logs yet.")
