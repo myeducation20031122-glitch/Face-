@@ -1,10 +1,8 @@
 import streamlit as st
-import face_recognition
-from PIL import Image, ImageDraw
+from PIL import Image
 import cloudinary
 import cloudinary.uploader
 import io
-import numpy as np
 from datetime import datetime
 
 # Cloudinary Config
@@ -15,61 +13,62 @@ cloudinary.config(
   secure = True
 )
 
-st.set_page_config(page_title="BIO-SHIELD ELITE", layout="wide")
-st.title("🛡️ BIO-SHIELD v4.0 (The Final Fix)")
+st.set_page_config(page_title="BIO-SHIELD ULITE", page_icon="🛡️")
 
-menu = st.sidebar.selectbox("Navigation", ["👤 Register Identity", "🔍 Intelligence Logs"])
+# CSS එකක් දාලා සයිට් එක සුපිරියටම හදමු
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; color: #00FF00; }
+    .stButton>button { width: 100%; border-radius: 20px; background-color: #00FF00; color: black; }
+    </style>
+    """, unsafe_allow_html=True)
 
-def apply_forensic_mesh(image_file):
-    # පින්තූරය load කරගැනීම
-    image = face_recognition.load_image_file(image_file)
-    # මුහුණේ ලක්ෂණ සෙවීම (Eyes, Nose, Mouth)
-    face_landmarks_list = face_recognition.face_landmarks(image)
-    
-    pil_image = Image.fromarray(image)
-    d = ImageDraw.Draw(pil_image)
-    
-    face_found = False
-    for face_landmarks in face_landmarks_list:
-        face_found = True
-        # මුහුණේ හැම ලක්ෂණයක්ම ඉරි වලින් ඇඳීම
-        for facial_feature in face_landmarks.keys():
-            d.line(face_landmarks[facial_feature], fill=(0, 255, 0), width=2)
-            
-    return pil_image, face_found
+st.title("🛡️ BIO-SHIELD v5.0 (Extreme Pro)")
 
-if menu == "👤 Register Identity":
+menu = st.sidebar.radio("Console", ["👤 Enrollment", "🔍 Security Logs"])
+
+if menu == "👤 Enrollment":
+    st.header("New Biometric Entry")
     name = st.text_input("Person Name:")
-    snap = st.camera_input("Biometric Scan")
+    role = st.selectbox("Access Level", ["VIP", "Staff", "Visitor"])
+    snap = st.camera_input("Scan Identity")
     
     if snap and name:
-        with st.spinner("Executing AI Forensic Mesh..."):
-            processed_img, found = apply_forensic_mesh(snap)
-            
-            # Bytes වලට හරවා ගැනීම
+        with st.spinner("Uploading to Secure Cloud..."):
+            # පින්තූරය කියවීම
+            img = Image.open(snap)
             buf = io.BytesIO()
-            processed_img.save(buf, format='JPEG')
+            img.save(buf, format='JPEG')
             
-            # Cloudinary Upload
+            # Cloudinary වෙත යැවීම (මූණ හඳුනාගැනීමේ Feature එකත් එක්ක)
+            # 'detection' එකෙන් මූණ තියෙන තැන ස්වයංක්‍රීයව සේව් වෙනවා
             res = cloudinary.uploader.upload(
                 buf.getvalue(),
-                folder="bioshield_v4",
-                context={"name": name, "face": str(found), "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                folder="bioshield_v5",
+                context={"name": name, "role": role, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+                detection="adv_face", # Cloudinary AI එකට වැඩේ බාර දෙනවා
+                tags=[name, role]
             )
             
-            st.success(f"Archived: {name}")
-            st.image(processed_img, caption="AI Landmarks Applied", width=500)
+            st.success(f"✅ Verified & Archived: {name}")
+            # Cloudinary එකෙන් හදපු thumbnail එක පෙන්වීම
+            st.image(res['secure_url'], caption=f"ID: {res['public_id']}", use_container_width=True)
 
-elif menu == "🔍 Intelligence Logs":
-    st.header("Cloud Security Logs")
+elif menu == "🔍 Security Logs":
+    st.header("Intelligence Database")
     try:
         import cloudinary.api
-        res = cloudinary.api.resources(type="upload", prefix="bioshield_v4", context=True)
+        resources = cloudinary.api.resources(type="upload", prefix="bioshield_v5", context=True)
+        
         cols = st.columns(3)
-        for i, item in enumerate(res.get('resources', [])):
+        for i, item in enumerate(resources.get('resources', [])):
             with cols[i % 3]:
-                st.image(item['secure_url'], use_container_width=True)
+                # පින්තූරය පෙන්වන කොට මූණ විතරක් Zoom කරලා (Face Crop) පෙන්වනවා
+                face_url = item['secure_url'].replace("/upload/", "/upload/w_300,h_300,c_thumb,g_face,r_max/")
+                st.image(face_url)
                 info = item.get('context', {}).get('custom', {})
                 st.write(f"👤 {info.get('name')}")
+                st.caption(f"📅 {info.get('time')}")
     except:
-        st.info("No logs found.")
+        st.info("No records found in the secure vault.")
+
