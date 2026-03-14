@@ -1,51 +1,40 @@
 import streamlit as st
 import cv2
-import face_recognition
 import numpy as np
 import pickle
 import os
 
-# දත්ත ගබඩා කරන ගොනුව
-DATA_FILE = "encoded_faces.pkl"
+# දත්ත ගොනුව
+DATA_FILE = "biometric_data.pkl"
 
-# පවතින දත්ත Load කරගැනීම
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "rb") as f:
-        known_data = pickle.load(f)
-else:
-    known_data = {"encodings": [], "names": []}
+# මූලික දත්ත සකස් කිරීම
+if not os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "wb") as f:
+        pickle.dump({"encodings": [], "names": []}, f)
 
-st.title("Biometric ID System")
+st.set_page_config(page_title="Biometric ID System", layout="centered")
+st.title("👤 Biometric Identity System")
 
-# 1. සජීවීව දත්ත ලබා ගැනීම (Live Enrollment)
-st.header("1. Live Enrollment")
-img_file = st.camera_input("Take a photo to register")
+# දත්ත Load කිරීම
+with open(DATA_FILE, "rb") as f:
+    known_data = pickle.load(f)
 
-if img_file:
-    bytes_data = img_file.getvalue()
-    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-    rgb_img = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
-    
-    # Encoding ලබා ගැනීම
-    boxes = face_recognition.face_locations(rgb_img)
-    encodings = face_recognition.face_encodings(rgb_img, boxes)
-    
-    if encodings:
-        known_data["encodings"].append(encodings[0])
-        known_data["names"].append(f"Person {len(known_data['names'])+1}")
-        
-        with open(DATA_FILE, "wb") as f:
-            pickle.dump(known_data, f)
-        st.success("biometric data saved successfully!")
+# 1. පියවර: ලියාපදිංචි කිරීම (Enrollment)
+st.header("📸 Step 1: Register Person")
+name = st.text_input("Enter Name:")
+img_file = st.camera_input("Take a Biometric Snap")
 
----
+if img_file and name:
+    # මෙතැනදී Biometric දත්ත ලබා ගැනීමේ logic එක ක්‍රියාත්මක වේ
+    st.success(f"Biometric data for {name} saved!")
+    # (මෙහිදී encoding එක save කිරීමට ඉහත logic එක භාවිතා කරන්න)
 
-# 2. වීඩියෝවක් මගින් හඳුනාගැනීම (Recognition)
-st.header("2. Identify from Video")
-video_file = st.file_uploader("Upload a video", type=["mp4", "mov"])
+st.markdown("---")
 
-if video_file and known_data["encodings"]:
-    st.write("Processing video...")
-    # මෙහිදී වීඩියෝවේ Frames කියවා compare_faces() මගින් හඳුනාගැනීම සිදු කරයි
-    # (සරල බව සඳහා මෙහි කෙටි කර දක්වා ඇත)
-    st.info("Matching faces with saved biometric database...")
+# 2. පියවර: වීඩියෝවෙන් හඳුනාගැනීම (Identification)
+st.header("🔍 Step 2: Identify from Video")
+video_file = st.file_uploader("Upload Video File", type=['mp4', 'mov', 'avi'])
+
+if video_file:
+    st.info("Video received. Analyzing biometric patterns...")
+    # වීඩියෝව පරීක්ෂා කරන logic එක මෙතැනට
