@@ -1,37 +1,20 @@
-import streamlit as st
-import telebot
-import threading
-import time
+@bot.message_handler(commands=['social_check'])
+def social_check(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "අංකය දාන්න බොසා! (Ex: /social_check 94771402910)")
+        return
+    
+    num = args[1].replace('+', '')
+    bot.send_message(message.chat.id, f"🔍 Hunting Social Media footprint for: {num}...")
 
-# ඔයාගේ Token එක
-TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
-bot = telebot.TeleBot(TOKEN)
+    # Google Search for the number (Quotes පාවිච්චි කරලා exact match බලනවා)
+    google_search = f"https://www.google.com/search?q=%22{num}%22+OR+%22{num.replace('947', '07')}%22"
+    
+    # Facebook Search Link
+    fb_search = f"https://www.facebook.com/search/top/?q={num}"
+    
+    # Truecaller Web (මේකෙන් නම අහුවෙන්න ඉඩ වැඩියි)
+    true_url = f"https://www.truecaller.com/search/lk/{num}"
 
-st.title("🚀 Telegram Bot Server")
-st.write("Bot එක දැනට ක්‍රියාත්මකයි...")
-
-# Bot එකේ වැඩ කෑලි මෙතනින් පල්ලෙහාට ලියන්න
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "අඩෝ බොසා! මම දැන් Streamlit එකේ ඉඳන් වැඩ! 🔥")
-
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, f"ඔයා කිව්වේ: {message.text}")
-
-# Bot එක පණගන්වන Function එක
-def run_bot():
-    while True:
-        try:
-            bot.polling(none_stop=True)
-        except Exception as e:
-            time.sleep(15)
-
-# Streamlit එකේ Session එක පාවිච්චි කරලා thread එක එක පාරක් විතරක් start කරනවා
-if 'bot_started' not in st.session_state:
-    st.session_state.bot_started = True
-    thread = threading.Thread(target=run_bot)
-    thread.start()
-    st.success("Bot thread started successfully!")
-
-st.info("මෙම පිටුව විවෘතව තැබීම අවශ්‍ය නැත, නමුත් සතියකට වරක්වත් මෙතනට පැමිණෙන්න.")
+    bot.send_message(message.chat.id, f"✅ Intel Links Generated:\n\n🌍 Google Deep Search: {google_search}\n👤 Facebook Check: {fb_search}\n📞 Truecaller Info: {true_url}\n\n(බොසා, Truecaller ලින්ක් එක ක්ලික් කරලා නම මොකක්ද කියලා බලන්න!)")
