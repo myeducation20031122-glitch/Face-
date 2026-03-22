@@ -3,3 +3,4 @@ pyTelegramBotAPI
 requests
 beautifulsoup4
 pandas
+psutil
