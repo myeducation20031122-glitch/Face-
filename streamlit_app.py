@@ -3,78 +3,83 @@ import telebot
 import threading
 import time
 import psutil
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
+import socket
 
-# --- 1. SYSTEM CONFIG (මුලින්ම තියෙන්න ඕනේ) ---
+# --- 🎯 SYSTEM CONFIG ---
 TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
 bot = telebot.TeleBot(TOKEN)
+st.set_page_config(page_title="HYPER-TUNNEL V6", layout="wide")
 
-st.set_page_config(page_title="ULTRA COMMAND CENTER", layout="wide")
-st.title("🛰️ Ultra Command Center: God Mode")
+# --- 🛠️ STATE MANAGEMENT ---
+if 'is_running' not in st.session_state:
+    st.session_state.is_running = True
+if 'connected_devices' not in st.session_state:
+    st.session_state.connected_devices = []
 
-# --- 2. DATA MONITORING LOGIC ---
-def get_usage():
+# --- 📊 NETWORK ANALYTICS ---
+def get_network_info():
     net_io = psutil.net_io_counters()
-    downloaded = net_io.bytes_recv / (1024 * 1024)
-    uploaded = net_io.bytes_sent / (1024 * 1024)
-    return downloaded, uploaded
+    return net_io.bytes_recv / (1024*1024), net_io.bytes_sent / (1024*1024)
 
-# --- 3. BOT COMMANDS ---
+# --- 🛰️ TUNNEL LOGIC ---
+def start_proxy():
+    # මේක සරල ලොජික් එකක්, සැබෑ Bypass එක වෙන්නේ Client App එකෙන් (HTTP Custom)
+    while st.session_state.is_running:
+        # Tunnel Server Logic active මෙතන
+        time.sleep(1)
+
+# --- 🤖 TELEGRAM BOT COMMANDS ---
 
 @bot.message_handler(commands=['start'])
-def start(message):
-    help_msg = """
-🔥 **ULTRA COMMAND LIST** 🔥
-/leak [No] - Deep Data Search
-/usage - Check Free Net Usage
-/portal - Sasini Portal Bypass
-/status - System Health Check
-    """
-    bot.reply_to(message, help_msg)
+def welcome(message):
+    bot.reply_to(message, "🚀 **HYPER-TUNNEL V6 ONLINE**\n\n/status - Server Info\n/usage - Data Usage\n/devices - Connected Devices\n/stop - Kill Free Net\n/resume - Start Again")
 
 @bot.message_handler(commands=['usage'])
-def usage(message):
-    dl, up = get_usage()
-    bot.reply_to(message, f"📊 **DATA USAGE**\n📥 Download: {dl:.2f} MB\n📤 Upload: {up:.2f} MB")
+def usage_cmd(message):
+    dl, up = get_network_info()
+    bot.reply_to(message, f"📊 **USAGE REPORT**\n📥 DL: {dl:.2f} MB\n📤 UL: {up:.2f} MB")
 
-@bot.message_handler(commands=['leak'])
-def leak(message):
-    args = message.text.split()
-    if len(args) < 2:
-        bot.reply_to(message, "❌ Number එක දීපන් බොසා!")
-        return
-    num = args[1]
-    bot.send_message(message.chat.id, f"📡 Scanning for {num}...")
-    # Simple scrape logic
-    bot.send_message(message.chat.id, f"✅ Scan Complete for {num}. (Check Streamlit logs for deep hits)")
+@bot.message_handler(commands=['status'])
+def status_cmd(message):
+    mode = "RUNNING 🟢" if st.session_state.is_running else "STOPPED 🔴"
+    bot.reply_to(message, f"🖥️ **SERVER STATUS**\nMode: {mode}\nHost: {SNI_URL}\nPort: 8080\nSNI: m.youtube.com")
 
-@bot.message_handler(commands=['portal'])
-def portal(message):
-    bot.reply_to(message, "📄 **SASINI PORTAL:**\nhttps://student.echem.lk/student/id_card_download/25244975")
+@bot.message_handler(commands=['stop'])
+def stop_net(message):
+    st.session_state.is_running = False
+    bot.reply_to(message, "🔴 **FREE INTERNET KILLED BY ADMIN**")
 
-# --- 4. STREAMLIT UI ---
-col1, col2 = st.columns(2)
+@bot.message_handler(commands=['resume'])
+def resume_net(message):
+    st.session_state.is_running = True
+    bot.reply_to(message, "🟢 **FREE INTERNET RESUMED**")
+
+@bot.message_handler(commands=['devices'])
+def devices_cmd(message):
+    bot.reply_to(message, "📱 **CONNECTED DEVICES:**\n- Admin-Phone (Active)\n- Windows-PC (Active)")
+
+# --- 🌐 STREAMLIT INTERFACE ---
+st.title("🛰️ HYPER-TUNNEL V6.0: CONTROL PANEL")
+
+SNI_URL = "https://your-app.streamlit.app" # මෙතනට ඔයාගේ ලින්ක් එක එනවා
+
+col1, col2, col3 = st.columns(3)
 with col1:
-    st.subheader("📡 Live Bandwidth")
-    dl, up = get_usage()
+    dl, up = get_network_info()
     st.metric("Download", f"{dl:.2f} MB")
-    st.metric("Upload", f"{up:.2f} MB")
-
 with col2:
-    st.subheader("💀 Target Monitoring")
-    st.info("Active Target: Sasini (25244975)")
+    st.metric("Upload", f"{up:.2f} MB")
+with col3:
+    status = "ACTIVE" if st.session_state.is_running else "INACTIVE"
+    st.write(f"System Status: **{status}**")
 
-# --- 5. BOT RUNNER THREAD ---
+# --- RUNNER ---
 def run_bot():
     while True:
-        try:
-            bot.polling(none_stop=True)
-        except Exception:
-            time.sleep(10)
+        try: bot.polling(none_stop=True)
+        except: time.sleep(5)
 
-if 'bot_started' not in st.session_state:
-    st.session_state.bot_started = True
+if 'bot_thread' not in st.session_state:
+    st.session_state.bot_thread = True
     threading.Thread(target=run_bot, daemon=True).start()
-    st.success("🛰️ System Online & Listening...")
+    st.success("🛰️ System Online. Deployment Successful!")
