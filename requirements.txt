@@ -1,3 +1,5 @@
 streamlit
 pyTelegramBotAPI
+requests
+beautifulsoup4
 pandas
