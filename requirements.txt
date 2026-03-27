@@ -1,7 +1,7 @@
 streamlit
 pyTelegramBotAPI
-requests
-beautifulsoup4
+opencv-python-headless
+numpy
+Pillow
 pandas
-psutil
 plotly
