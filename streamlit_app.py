@@ -11,83 +11,67 @@ import io
 TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
 bot = telebot.TeleBot(TOKEN)
 
-# Global variable එකක් ඕනේ frame එක share කරගන්න
 if 'latest_frame' not in st.session_state:
     st.session_state.latest_frame = None
 
-# --- 🤖 TELEGRAM BOT HANDLER ---
-@bot.message_handler(commands=['capture'])
-def send_frame(message):
-    if st.session_state.latest_frame is not None:
-        # OpenCV BGR frame එක RGB වලට හරවලා Image එකක් කරනවා
-        img_rgb = cv2.cvtColor(st.session_state.latest_frame, cv2.COLOR_BGR2RGB)
-        img_pil = Image.fromarray(img_rgb)
-        
-        # Buffer එකකට දාලා Telegram එකට යවනවා
-        bio = io.BytesIO()
-        img_pil.save(bio, format='PNG')
-        bio.seek(0)
-        bot.send_photo(message.chat.id, bio, caption="🎯 Current Evolution Frame Captured!")
-    else:
-        bot.reply_to(message, "⚠️ Streamlit එකේ Visualizer එක තාම Active නැහැ!")
-
-# Bot එක වෙනම Thread එකක රන් කරනවා
+# --- 🤖 TELEGRAM BOT (Background) ---
 def run_bot():
-    bot.polling(none_stop=True)
+    try:
+        @bot.message_handler(commands=['capture'])
+        def send_frame(message):
+            if st.session_state.latest_frame is not None:
+                img_rgb = cv2.cvtColor(st.session_state.latest_frame, cv2.COLOR_BGR2RGB)
+                img_pil = Image.fromarray(img_rgb)
+                bio = io.BytesIO()
+                img_pil.save(bio, format='JPEG', quality=70) # Quality පොඩ්ඩක් අඩු කළා fast වෙන්න
+                bio.seek(0)
+                bot.send_photo(message.chat.id, bio, caption="🎯 Frame Captured!")
+        bot.polling(none_stop=True)
+    except: pass
 
 if 'bot_thread' not in st.session_state:
     threading.Thread(target=run_bot, daemon=True).start()
     st.session_state.bot_thread = True
 
-# --- 🌐 STREAMLIT INTERFACE ---
-st.set_page_config(page_title="Mathematical Evolution", layout="wide")
-st.title("🛰️ LIVE MATHEMATICAL EVOLUTION (GOD MODE)")
+# --- 🌐 STREAMLIT UI ---
+st.set_page_config(page_title="Smooth Math Art", layout="centered") # Layout එක centered කළොත් තවත් smooth
+st.title("🛰️ SMOOTH MATHEMATICAL EVOLUTION")
 
-# Sidebar Settings
-st.sidebar.header("Evolution Controls")
-speed = st.sidebar.slider("Evolution Speed", 0.5, 5.0, 1.5)
-intensity = st.sidebar.slider("Ripple Intensity", 0.1, 1.0, 0.3)
+# Sidebar
+speed = st.sidebar.slider("Speed", 1.0, 10.0, 4.0)
+res = st.sidebar.selectbox("Resolution (Higher = Slower)", [320, 480, 640], index=0) # Resolution එක අඩු කරල බැලුවම පට්ට smooth
 
-# Video Placeholder
+# වීඩියෝ එක පෙන්වන තැන
 frame_placeholder = st.empty()
 
-# --- 🧬 MATH EVOLUTION ENGINE ---
-width, height = 640, 480
-x = np.linspace(-10, 10, width, dtype=np.float32)
-y = np.linspace(-10, 10, height, dtype=np.float32)
+# --- 🧬 OPTIMIZED ENGINE ---
+width = res
+height = int(res * 0.75)
+x = np.linspace(-8, 8, width).astype(np.float32)
+y = np.linspace(-8, 8, height).astype(np.float32)
 X, Y = np.meshgrid(x, y)
-vals = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=np.float32)
+R_sq = X**2 + Y**2
+R = np.sqrt(R_sq)
 
 start_time = time.time()
 
-# ලයිව් loop එක
+# 🚀 මේක තමයි පට්ටම Smooth විදිය
 while True:
     t = (time.time() - start_time) * speed
-    Z = np.zeros((height, width), dtype=np.float32)
     
-    # සංකීර්ණ Interference ලොජික් එක
-    for i in range(4):
-        s_val1 = vals[i % len(vals)] / 30.0
-        s_val2 = vals[(i + 3) % len(vals)] / 40.0
-        Z += np.sin(s_val1 * X + t) * np.cos(s_val2 * Y - t)
+    # ගණිතමය සමීකරණය (එක පේළියෙන් සුළු කරනවා Fast වෙන්න)
+    Z = np.sin(1.2 * X + t) * np.cos(0.8 * Y - t)
+    Z += np.sin(R * 5.0 - t * 3.0) * 0.4 # Ripple Effect
     
-    # ⚡ උඹ ඉල්ලපු Circular Ripple Effect එක (Intensity slider එකත් එක්ක)
-    R = np.sqrt(X**2 + Y**2)
-    Z += np.sin(R * 5.0 - t * 4.0) * intensity
-
-    # Normalization & Coloring
-    Z_norm = cv2.normalize(Z, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+    # Normalization
+    Z_norm = ((Z - Z.min()) / (Z.max() - Z.min()) * 255).astype(np.uint8)
     img_color = cv2.applyColorMap(Z_norm, cv2.COLORMAP_INFERNO)
     
-    # FPS පෙන්වීම
-    cv2.putText(img_color, f"EVOLVING... t={t:.1f}", (10, 30), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-    # Frame එක Session State එකට දානවා Bot එකට පේන්න
+    # Frame එක Store කරනවා Bot එකට
     st.session_state.latest_frame = img_color
 
-    # Streamlit එකේ පෙන්වීම (RGB වලට හරවලා)
+    # පේජ් එක මුළුමනින්ම refresh නොකර image එක විතරක් update කරනවා
     frame_placeholder.image(img_color, channels="BGR", use_container_width=True)
     
-    # පොඩි delay එකක් දානවා streamlit එක හිර නොවී ඉන්න
-    time.sleep(0.01)
+    # ⏱️ Frame rate එක stabilize කරන්න ඉතා කුඩා delay එකක්
+    time.sleep(0.001) 
