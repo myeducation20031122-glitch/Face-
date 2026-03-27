@@ -1,77 +1,54 @@
 import streamlit as st
-import cv2
 import numpy as np
 import time
-import telebot
-from PIL import Image
-import threading
-import io
 
-# --- 🎯 CONFIG ---
-TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
-bot = telebot.TeleBot(TOKEN)
+# පිටුවේ සැකසුම් (Page Config)
+st.set_page_config(page_title="Multiverse Engine", layout="centered")
 
-if 'latest_frame' not in st.session_state:
-    st.session_state.latest_frame = None
+# CSS මගින් Dark Theme එක සහ UI එක ලස්සන කිරීම
+st.markdown("""
+    <style>
+    .main { background-color: #000000; }
+    .stTitle { color: #00f2ff; text-align: center; font-family: 'Courier New', Courier, monospace; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 🤖 TELEGRAM BOT (Background) ---
-def run_bot():
-    try:
-        @bot.message_handler(commands=['capture'])
-        def send_frame(message):
-            if st.session_state.latest_frame is not None:
-                img_rgb = cv2.cvtColor(st.session_state.latest_frame, cv2.COLOR_BGR2RGB)
-                img_pil = Image.fromarray(img_rgb)
-                bio = io.BytesIO()
-                img_pil.save(bio, format='JPEG', quality=70) # Quality පොඩ්ඩක් අඩු කළා fast වෙන්න
-                bio.seek(0)
-                bot.send_photo(message.chat.id, bio, caption="🎯 Frame Captured!")
-        bot.polling(none_stop=True)
-    except: pass
+st.title("🌌 MULTIVERSE ENGINE: UNLIMITED")
 
-if 'bot_thread' not in st.session_state:
-    threading.Thread(target=run_bot, daemon=True).start()
-    st.session_state.bot_thread = True
+# සංකේත වල අගයන් (Mapping Symbols to Frequencies)
+vals = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 255])
 
-# --- 🌐 STREAMLIT UI ---
-st.set_page_config(page_title="Smooth Math Art", layout="centered") # Layout එක centered කළොත් තවත් smooth
-st.title("🛰️ SMOOTH MATHEMATICAL EVOLUTION")
-
-# Sidebar
-speed = st.sidebar.slider("Speed", 1.0, 10.0, 4.0)
-res = st.sidebar.selectbox("Resolution (Higher = Slower)", [320, 480, 640], index=0) # Resolution එක අඩු කරල බැලුවම පට්ට smooth
-
-# වීඩියෝ එක පෙන්වන තැන
-frame_placeholder = st.empty()
-
-# --- 🧬 OPTIMIZED ENGINE ---
-width = res
-height = int(res * 0.75)
-x = np.linspace(-8, 8, width).astype(np.float32)
-y = np.linspace(-8, 8, height).astype(np.float32)
+# Grid එක සැකසීම (Resolution එක 150ක් වගේ ගමු Streamlit එකට ගැලපෙන්න)
+res = 150
+x = np.linspace(-10, 10, res)
+y = np.linspace(-10, 10, res)
 X, Y = np.meshgrid(x, y)
-R_sq = X**2 + Y**2
-R = np.sqrt(R_sq)
 
+# රූපය පෙන්වීමට හිස් තැනක් වෙන් කිරීම
+placeholder = st.empty()
+
+# සැබෑ සජීවී ලූපය (Infinite Loop for Live Animation)
 start_time = time.time()
 
-# 🚀 මේක තමයි පට්ටම Smooth විදිය
 while True:
-    t = (time.time() - start_time) * speed
+    t = time.time() - start_time
     
-    # ගණිතමය සමීකරණය (එක පේළියෙන් සුළු කරනවා Fast වෙන්න)
-    Z = np.sin(1.2 * X + t) * np.cos(0.8 * Y - t)
-    Z += np.sin(R * 5.0 - t * 3.0) * 0.4 # Ripple Effect
+    # ත්‍රිකෝණමිතික තරංග සමීකරණය
+    Z = np.zeros((res, res))
     
-    # Normalization
-    Z_norm = ((Z - Z.min()) / (Z.max() - Z.min()) * 255).astype(np.uint8)
-    img_color = cv2.applyColorMap(Z_norm, cv2.COLORMAP_INFERNO)
-    
-    # Frame එක Store කරනවා Bot එකට
-    st.session_state.latest_frame = img_color
+    # සංකේත කිහිපයක බලපෑම එකතු කිරීම
+    for i in range(4):
+        freq = vals[i % len(vals)] / 20.0
+        # Linear waves + Circular interference
+        Z += np.sin(freq * X + t) * np.cos((vals[(i+1)%len(vals)]/30.0) * Y - t)
+        Z += np.sin(np.sqrt(X**2 + Y**2) * (freq/2) - t * 1.5)
 
-    # පේජ් එක මුළුමනින්ම refresh නොකර image එක විතරක් update කරනවා
-    frame_placeholder.image(img_color, channels="BGR", use_container_width=True)
+    # දත්ත 0-255 අතරට ගෙන ඒම
+    Z_norm = (Z - Z.min()) / (Z.max() - Z.min())
     
-    # ⏱️ Frame rate එක stabilize කරන්න ඉතා කුඩා delay එකක්
-    time.sleep(0.001) 
+    # Streamlit එකේ රූපය පෙන්වීම (Inferno Colormap එකට සමාන වර්ණ රටා)
+    # මෙහිදී අපිට Plotly හෝ Matplotlib අවශ්‍ය නැහැ, කෙලින්ම Array එක පෙන්විය හැක
+    placeholder.image(Z_norm, use_container_width=True, clamp=True)
+    
+    # සුළු විරාමයක් (Frame rate එක පාලනයට)
+    time.sleep(0.01)
