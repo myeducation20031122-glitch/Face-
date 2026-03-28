@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 # --- 🛠️ CONFIGURATION ---
-TOKEN = "3BZ7nhK5kROMEE1if5v95L2lb4E_2cswxn1jbVTnuATksZiY9"
+TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
 
 st.set_page_config(page_title="PDF Cracker Bot Host", page_icon="🤖")
 st.title("🤖 Telegram PDF Cracker Bot")
