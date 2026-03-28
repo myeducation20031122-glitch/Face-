@@ -26,7 +26,7 @@ async def handle_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(input_path)
 
     # Password Range
-    start_r = 25002500
+    start_r = 25882500
     end_r = 26002600
     found_pwd = None
 
