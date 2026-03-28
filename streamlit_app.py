@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 
 # --- 🛠️ CONFIGURATION ---
 # Streamlit Secrets වල 'BOT_TOKEN' කියලා සේව් කරන්න. නැත්නම් පහත එක පාවිච්චි කරන්න.
-TOKEN = st.secrets.get("BOT_TOKEN", "3BZ7nhK5kROMEE1if5v95L2lb4E_2cswxn1jbVTnuATksZiY9")
+TOKEN = st.secrets.get("BOT_TOKEN", "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo)
 
 st.set_page_config(page_title="Victims Bot Pro", page_icon="🕵️‍♂️")
 st.title("🕵️‍♂️ Victims Bot - Pro Control Panel")
