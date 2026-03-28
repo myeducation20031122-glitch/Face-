@@ -2,148 +2,155 @@ import streamlit as st
 import asyncio
 import os
 import pikepdf
-import re
+import threading
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 # --- 🛠️ CONFIGURATION ---
-TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
+# Streamlit Secrets වල 'BOT_TOKEN' කියලා සේව් කරන්න. නැත්නම් පහත එක පාවිච්චි කරන්න.
+TOKEN = st.secrets.get("BOT_TOKEN", "3BZ7nhK5kROMEE1if5v95L2lb4E_2cswxn1jbVTnuATksZiY9")
 
-st.set_page_config(page_title="Victims Bot Control", page_icon="⚡")
-st.title("⚡ Victims Bot V2.0 - Active")
-st.caption("Auto-running background process...")
+st.set_page_config(page_title="Victims Bot Pro", page_icon="🕵️‍♂️")
+st.title("🕵️‍♂️ Victims Bot - Pro Control Panel")
 
-# --- 🧠 BOT LOGIC & STATE ---
-# User ගේ current state එක මතක තියාගන්න (Password Range එකක්ද එවන්නෙ කියලා බලන්න)
-user_data = {}
+# User States මතක තියාගන්න
+if 'user_data' not in st.session_state:
+    st.session_state.user_data = {}
+
+# --- 🤖 BOT CORE LOGIC ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📤 Upload PDF", callback_data='upload_info')]
-    ]
+    keyboard = [[InlineKeyboardButton("📤 Upload PDF", callback_data='help')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "👋 හායි බොසා! මම Victims Bot.\nඔයාගේ Locked PDF එකක් එවන්න, මම ඒක ගේමක් නැතුව Unlock කරලා දෙන්නම්.",
-        reply_markup=reply_markup
-    )
+    await update.message.reply_text("👋 Victims Bot සක්‍රීයයි! මට PDF එකක් එවන්න බොසා.", reply_markup=reply_markup)
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file_id = update.message.document.file_id
-    file_name = update.message.document.file_name
+    user_id = update.effective_user.id
+    doc = update.message.document
     
-    if not file_name.lower().endswith('.pdf'):
-        await update.message.reply_text("❌ PDF එකක් විතරක් එවන්න බොසා!")
+    if not doc.file_name.lower().endswith('.pdf'):
+        await update.message.reply_text("❌ PDF එකක් විතරක් එවන්න.")
         return
 
-    # PDF එක තාවකාලිකව සේව් කරමු
-    file = await context.bot.get_file(file_id)
-    path = f"temp_{update.effective_user.id}.pdf"
+    status = await update.message.reply_text("📥 ගොනුව බාගත කරමින්...")
+    file = await context.bot.get_file(doc.file_id)
+    path = f"file_{user_id}_{int(time.time())}.pdf"
     await file.download_to_drive(path)
-    
-    user_data[update.effective_user.id] = {"path": path, "name": file_name}
 
+    st.session_state.user_data[user_id] = {"path": path, "name": doc.file_name, "state": None}
+    
     keyboard = [
         [InlineKeyboardButton("🔑 I Know Password", callback_data='know_pwd')],
-        [InlineKeyboardButton("📊 I Know Password Range", callback_data='know_range')],
+        [InlineKeyboardButton("📊 Password Range", callback_data='know_range')],
         [InlineKeyboardButton("🤷 I Don't Know Anything", callback_data='know_nothing')]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(f"📄 ගොනුව ලැබුණා: {file_name}\nදැන් මොකද කරන්නේ?", reply_markup=reply_markup)
+    await status.edit_text(f"📄 {doc.file_name} ලැබුණා.\nදැන් මොකක්ද කරන්න ඕනේ?", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     await query.answer()
 
-    if query.data == 'know_pwd':
-        user_data[user_id]['state'] = 'WAITING_PWD'
-        await query.edit_message_text("⌨️ කරුණාකර PDF එකේ Password එක එවන්න:")
+    if user_id not in st.session_state.user_data:
+        await query.edit_message_text("⚠️ පරණ session එකක්. කරුණාකර නැවත PDF එක එවන්න.")
+        return
 
-    elif query.data == 'know_range':
-        user_data[user_id]['state'] = 'WAITING_RANGE'
+    data = query.data
+    if data == 'know_pwd':
+        st.session_state.user_data[user_id]['state'] = 'WAIT_PWD'
+        await query.edit_message_text("⌨️ Password එක එවන්න:")
+    elif data == 'know_range':
+        st.session_state.user_data[user_id]['state'] = 'WAIT_RANGE'
         await query.edit_message_text("📏 පරාසය එවන්න (උදා: 25000000-26000000):")
-
-    elif query.data == 'know_nothing':
+    elif data == 'know_nothing':
         keyboard = [
-            [InlineKeyboardButton("🔢 Numbers Only", callback_data='brute_num')],
-            [InlineKeyboardButton("🔠 Letters Only", callback_data='brute_let')],
-            [InlineKeyboardButton("🔀 Mixed (All)", callback_data='brute_mix')]
+            [InlineKeyboardButton("🔢 Numbers", callback_data='brute_num')],
+            [InlineKeyboardButton("🔠 Letters", callback_data='brute_let')],
+            [InlineKeyboardButton("🔀 Mixed", callback_data='brute_mix')]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("මොන වගේ Brute Force එකක්ද ඕනේ?", reply_markup=reply_markup)
-
-    elif query.data == 'brute_num':
-        # Default range එකකට auto brute force පටන් ගන්නවා
-        await query.edit_message_text("🚀 Auto Brute Force (Numbers) ආරම්භ කළා...")
-        await start_brute_force(query, context, user_id, 0, 99999999)
+        await query.edit_message_text("මොන වගේ Brute Force එකක්ද ඕනේ?", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif data == 'brute_num':
+        # Default range එකකට auto පටන් ගන්නවා
+        await start_brute(query, context, user_id, 25880000, 25889000)
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id not in user_data: return
-
-    state = user_data[user_id].get('state')
+    if user_id not in st.session_state.user_data: return
+    
+    state = st.session_state.user_data[user_id].get('state')
     text = update.message.text
+    path = st.session_state.user_data[user_id]['path']
 
-    if state == 'WAITING_PWD':
-        # කෙලින්ම unlock කරලා බලනවා
-        path = user_data[user_id]['path']
+    if state == 'WAIT_PWD':
         try:
             with pikepdf.open(path, password=text) as pdf:
-                out = f"unlocked_{user_data[user_id]['name']}"
+                out = f"dec_{user_id}.pdf"
                 pdf.save(out)
-                await update.message.reply_document(document=open(out, 'rb'), caption="🔓 පට්ට! මෙන්න Unlocked PDF එක.")
+                await update.message.reply_document(document=open(out, 'rb'), caption="🔓 Unlocked!")
                 os.remove(out)
         except:
-            await update.message.reply_text("❌ වැරදි Password එකක්!")
+            await update.message.reply_text("❌ වැරදි පාස්වර්ඩ් එකක්!")
 
-    elif state == 'WAITING_RANGE':
-        # Range එක අරන් brute force කරනවා
-        try:
-            start_r, end_r = map(int, text.split('-'))
-            await update.message.reply_text(f"🚀 පරාසය {start_r} සිට {end_r} දක්වා පරීක්ෂා කරමින්...")
-            await start_brute_force(update, context, user_id, start_r, end_r)
-        except:
-            await update.message.reply_text("❌ වැරදි format එකක්. (200-500 ලෙස එවන්න)")
+    elif state == 'WAIT_RANGE':
+        if '-' in text:
+            try:
+                s, e = map(int, text.split('-'))
+                await start_brute(update, context, user_id, s, e)
+            except:
+                await update.message.reply_text("❌ වැරදි පරාසයක්.")
 
-async def start_brute_force(event, context, user_id, start_r, end_r):
-    path = user_data[user_id]['path']
-    found = None
+async def start_brute(event, context, user_id, start_r, end_r):
+    data = st.session_state.user_data[user_id]
+    path = data['path']
+    found = False
     
-    # Progress එක පෙන්නන්න message එකක්
-    prog_msg = await (event.message.reply_text("⏳ Searching...") if hasattr(event, 'message') else event.edit_message_text("⏳ Searching..."))
+    # Progress update එක පාලනය කරන්න
+    prog_msg = await context.bot.send_message(chat_id=user_id, text="🚀 ආරම්භ කළා...")
+    last_update_time = time.time()
 
-    for pwd in range(start_r, end_r + 1):
-        pwd_str = str(pwd)
-        if pwd % 1000 == 0: # තත්පර ගාණකට වරක් update එකක් දාමු
-             await context.bot.edit_message_text(chat_id=user_id, message_id=prog_msg.message_id, text=f"🔍 Checking: {pwd_str}")
+    try:
+        for pwd in range(start_r, end_r + 1):
+            pwd_str = str(pwd)
+            
+            # තත්පර 3කට වරක් පමණක් progress එක පෙන්වයි (Rate limit safe)
+            if time.time() - last_update_time > 3:
+                await context.bot.edit_message_text(chat_id=user_id, message_id=prog_msg.message_id, text=f"🔍 පරීක්ෂා කරමින්: `{pwd_str}`")
+                last_update_time = time.time()
+
+            try:
+                with pikepdf.open(path, password=pwd_str) as pdf:
+                    out = f"unlocked_{user_id}.pdf"
+                    pdf.save(out)
+                    await context.bot.send_document(chat_id=user_id, document=open(out, 'rb'), caption=f"✅ හමු වුණා!\n🔑 Password: `{pwd_str}`")
+                    os.remove(out)
+                    found = True
+                    break
+            except pikepdf.PasswordError:
+                continue
         
-        try:
-            with pikepdf.open(path, password=pwd_str) as pdf:
-                found = pwd_str
-                out = f"unlocked_{user_data[user_id]['name']}"
-                pdf.save(out)
-                await context.bot.send_document(chat_id=user_id, document=open(out, 'rb'), caption=f"✅ Found! Pwd: `{pwd_str}`")
-                os.remove(out)
-                break
-        except: continue
+        if not found:
+            await context.bot.send_message(chat_id=user_id, text="❌ ලබාදුන් පරාසය තුළ Password එක හමු වුණේ නැත.")
+    finally:
+        # සැමවිටම temp file එක අයින් කරයි
+        if os.path.exists(path): os.remove(path)
+        st.session_state.user_data.pop(user_id, None)
 
-    if not found:
-        await context.bot.send_message(chat_id=user_id, text="❌ සොයාගත නොහැකි විය.")
-
-# --- 🚀 AUTOMATIC RUNNER ---
-async def main():
+# --- 🚀 RUNNER ---
+def run_bot_forever():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(CallbackQueryHandler(button_click))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-    while True: await asyncio.sleep(1)
+    app.run_polling()
 
-# Streamlit එක load වුණු ගමන් auto start වෙන්න මේක කරන්නේ
-if "bot_started" not in st.session_state:
-    st.session_state.bot_started = True
-    asyncio.run(main())
+if "bot_thread" not in st.session_state:
+    st.info("🚀 Bot Server එක පණගන්වමින්...")
+    thread = threading.Thread(target=run_bot_forever, daemon=True)
+    thread.start()
+    st.session_state.bot_thread = True
+
+st.success("✅ Bot එක දැන් සක්‍රීයයි. Telegram එකට ගිහින් පාවිච්චි කරන්න.")
