@@ -1,7 +1,4 @@
 streamlit
-pyTelegramBotAPI
-opencv-python-headless
-numpy
-Pillow
-pandas
-plotly
+pikepdf
+python-telegram-bot
+asyncio
