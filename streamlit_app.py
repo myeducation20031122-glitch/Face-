@@ -7,7 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 # --- 🛠️ CONFIGURATION ---
-TOKEN = "3BZ7nhK5kROMEE1if5v95L2lb4E_2cswxn1jbVTnuATksZiY9"
+TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
 
 st.set_page_config(page_title="Victims Bot Control", page_icon="⚡")
 st.title("⚡ Victims Bot V2.0 - Active")
