@@ -1,122 +1,94 @@
 import streamlit as st
-import yt_dlp
+from pytubefix import YouTube
 import os
 import tempfile
-import subprocess
 
-# ---------- Functions (මුලින්ම Define කරන්න ඕනේ) ----------
-
-def update_progress(d, placeholder):
-    """Download progress එක පෙන්වන function එක"""
-    if d['status'] == 'downloading':
-        percent = d.get('_percent_str', '0%').strip()
-        speed = d.get('_speed_str', 'N/A').strip()
-        eta = d.get('_eta_str', 'N/A').strip()
-        placeholder.markdown(f"**Downloading...** {percent} | Speed: {speed} | ETA: {eta}")
-    elif d['status'] == 'finished':
-        placeholder.markdown("✅ **Download finished! Processing...**")
-
-def check_ffmpeg():
-    """ffmpeg තියෙනවාද බලන function එක"""
-    try:
-        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
-        return True
-    except:
-        return False
-
-ffmpeg_available = check_ffmpeg()
-
-# ---------- Page Config & CSS ----------
 st.set_page_config(page_title="YouTube Downloader", page_icon="🎬", layout="centered")
 
 st.markdown("""
 <style>
-    .title { text-align: center; color: #FF4B4B; font-size: 2.5rem; font-weight: bold; }
-    .stButton button { background-color: #FF4B4B; color: white; border-radius: 8px; height: 3em; }
-    footer { text-align: center; color: #aaa; font-size: 0.8rem; margin-top: 50px; }
+    .title { text-align: center; color: #FF4B4B; font-size: 3rem; font-weight: bold; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 2rem; }
+    .stButton button { background-color: #FF4B4B; color: white; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="title">🎬 YouTube Downloader</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">PyTubeFix - ffmpeg අවශ්‍ය නැහැ!</div>', unsafe_allow_html=True)
 
-# ---------- UI Logic ----------
-if not ffmpeg_available:
-    st.warning("⚠️ **ffmpeg not found!** High-quality merge and MP3 conversion might not work perfectly.")
-
-url = st.text_input("🔗 **Video URL**", placeholder="https://www.youtube.com/watch?v=...")
+url = st.text_input("🔗 YouTube URL", placeholder="https://www.youtube.com/watch?v=...")
 
 if url:
-    with st.spinner("Fetching video info..."):
+    with st.spinner("වීඩියෝ තොරතුරු ලබා ගනිමින්..."):
         try:
-            ydl_opts = {'quiet': True, 'no_warnings': True}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                title = info.get('title', 'video')
-                formats = info.get('formats', [])
-            st.success(f"✅ Found: **{title}**")
-            
-            download_type = st.radio(
-                "📥 **Select download type**",
-                ["Best quality (video + audio)", "Audio only (MP3)", "Choose specific quality"]
-            )
+            yt = YouTube(url)
+            title = yt.title
+            st.success(f"✅ **{title}**")
+            st.info(f"⏱️ දිග: {yt.length // 60}:{yt.length % 60:02d} | 👁️ Views: {yt.views:,}")
+        except Exception as e:
+            st.error(f"URL එක හරිද? Error: {e}")
+            st.stop()
 
-            format_spec = None
-            if download_type == "Best quality (video + audio)":
-                format_spec = "bestvideo+bestaudio/best"
-            elif download_type == "Audio only (MP3)":
-                format_spec = "bestaudio/best"
-            else:
-                format_options = {f"{f.get('resolution', 'audio')} ({f.get('ext')})": f['format_id'] for f in formats if f.get('format_id')}
-                selected_desc = st.selectbox("Choose a format", list(format_options.keys()))
-                format_spec = format_options[selected_desc]
-
-            if st.button("🚀 Download Now"):
-                progress_placeholder = st.empty()
+    # Streams list එක පෙන්වන්න
+    st.subheader("📥 පවතින Streams")
+    
+    streams = []
+    stream_options = {}
+    
+    # Video streams (progressive = video+audio එකට)
+    for s in yt.streams.filter(progressive=True):
+        desc = f"🎬 {s.resolution} ({s.mime_type.split('/')[-1]})"
+        stream_options[desc] = s
+        streams.append(desc)
+    
+    # Audio only streams
+    for s in yt.streams.filter(only_audio=True):
+        desc = f"🎵 Audio ({s.abr}) - {s.mime_type.split('/')[-1]}"
+        stream_options[desc] = s
+        streams.append(desc)
+    
+    if streams:
+        selected_desc = st.selectbox("Stream එක තෝරන්න", streams)
+        selected_stream = stream_options[selected_desc]
+        
+        st.info(f"📁 File size: {selected_stream.filesize_mb:.1f} MB")
+        
+        if st.button("🚀 Download Now", use_container_width=True):
+            with tempfile.TemporaryDirectory() as tmpdir:
                 with st.status("Downloading...", expanded=True) as status:
                     try:
-                        # Temporary directory එකක් පාවිච්චි කිරීම (Streamlit Cloud වලට වැදගත්)
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            # yt-dlp options
-                            ydl_opts_dl = {
-                                'format': format_spec,
-                                'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
-                                'progress_hooks': [lambda d: update_progress(d, progress_placeholder)],
-                                'noplaylist': True,
-                            }
-                            
-                            # Audio only නම් MP3 වලට convert කරන්න ffmpeg ඕනේ
-                            if download_type == "Audio only (MP3)":
-                                ydl_opts_dl['postprocessors'] = [{
-                                    'key': 'FFmpegExtractAudio',
-                                    'preferredcodec': 'mp3',
-                                    'preferredquality': '192',
-                                }]
-
-                            with yt_dlp.YoutubeDL(ydl_opts_dl) as ydl:
-                                # ඇත්තටම download කරමු
-                                d_info = ydl.extract_info(url, download=True)
-                                # හරියටම පස්සේ හැදෙන filename එක හොයාගමු
-                                final_filename = ydl.prepare_filename(d_info)
-                                
-                                # Audio conversion එක නිසා extension එක වෙනස් වෙන්න පුළුවන්
-                                if download_type == "Audio only (MP3)":
-                                    final_filename = os.path.splitext(final_filename)[0] + ".mp3"
-
-                                if os.path.exists(final_filename):
-                                    with open(final_filename, "rb") as f:
-                                        st.download_button(
-                                            label="💾 Save to Device",
-                                            data=f.read(),
-                                            file_name=os.path.basename(final_filename),
-                                            mime="application/octet-stream"
-                                        )
-                                    status.update(label="✅ Download Ready!", state="complete")
-                                else:
-                                    status.update(label="❌ File creation failed.", state="error")
+                        # Progress callback
+                        def on_progress(stream, chunk, bytes_remaining):
+                            total = stream.filesize
+                            bytes_downloaded = total - bytes_remaining
+                            percent = (bytes_downloaded / total) * 100
+                            status.write(f"Downloading: {percent:.1f}%")
+                        
+                        # Create YouTube object with progress
+                        yt_with_progress = YouTube(url, on_progress_callback=on_progress)
+                        
+                        if selected_stream.includes_audio and selected_stream.includes_video:
+                            stream_to_download = yt_with_progress.streams.get_by_itag(selected_stream.itag)
+                        else:
+                            stream_to_download = selected_stream
+                        
+                        file_path = stream_to_download.download(output_path=tmpdir)
+                        
+                        status.update(label="Complete!", state="complete")
+                        
+                        with open(file_path, "rb") as f:
+                            file_bytes = f.read()
+                        
+                        st.download_button(
+                            label="💾 Save File",
+                            data=file_bytes,
+                            file_name=os.path.basename(file_path),
+                            use_container_width=True
+                        )
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        status.update(label=f"Error: {e}", state="error")
+    else:
+        st.error("Download කළ හැකි streams නොමැත.")
 
-        except Exception as e:
-            st.error(f"Could not fetch info: {e}")
-
-st.markdown('<footer>⚠️ පෞද්ගලික ප්‍රයෝජනය සඳහා පමණක් භාවිතා කරන්න.</footer>', unsafe_allow_html=True)
+st.markdown("---")
+st.caption("⚠️ අයිතිකරුගේ අවසරය ඇති වීඩියෝ පමණක් download කරන්න.")
