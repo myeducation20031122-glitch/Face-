@@ -32,23 +32,23 @@ if url:
     # Streams list එක පෙන්වන්න
     st.subheader("📥 පවතින Streams")
     
-    streams = []
     stream_options = {}
+    streams_desc = []
     
-    # Video streams (progressive = video+audio එකට)
+    # Progressive streams (video+audio එකට)
     for s in yt.streams.filter(progressive=True):
         desc = f"🎬 {s.resolution} ({s.mime_type.split('/')[-1]})"
         stream_options[desc] = s
-        streams.append(desc)
+        streams_desc.append(desc)
     
     # Audio only streams
     for s in yt.streams.filter(only_audio=True):
         desc = f"🎵 Audio ({s.abr}) - {s.mime_type.split('/')[-1]}"
         stream_options[desc] = s
-        streams.append(desc)
+        streams_desc.append(desc)
     
-    if streams:
-        selected_desc = st.selectbox("Stream එක තෝරන්න", streams)
+    if streams_desc:
+        selected_desc = st.selectbox("Stream එක තෝරන්න", streams_desc)
         selected_stream = stream_options[selected_desc]
         
         st.info(f"📁 File size: {selected_stream.filesize_mb:.1f} MB")
@@ -57,24 +57,23 @@ if url:
             with tempfile.TemporaryDirectory() as tmpdir:
                 with st.status("Downloading...", expanded=True) as status:
                     try:
-                        # Progress callback
+                        # Progress callback function
                         def on_progress(stream, chunk, bytes_remaining):
                             total = stream.filesize
                             bytes_downloaded = total - bytes_remaining
                             percent = (bytes_downloaded / total) * 100
                             status.write(f"Downloading: {percent:.1f}%")
                         
-                        # Create YouTube object with progress
+                        # YouTube object with progress callback
                         yt_with_progress = YouTube(url, on_progress_callback=on_progress)
                         
-                        if selected_stream.includes_audio and selected_stream.includes_video:
-                            stream_to_download = yt_with_progress.streams.get_by_itag(selected_stream.itag)
-                        else:
-                            stream_to_download = selected_stream
+                        # Get the same stream by itag
+                        stream_to_download = yt_with_progress.streams.get_by_itag(selected_stream.itag)
                         
+                        # Download
                         file_path = stream_to_download.download(output_path=tmpdir)
                         
-                        status.update(label="Complete!", state="complete")
+                        status.update(label="Download complete!", state="complete")
                         
                         with open(file_path, "rb") as f:
                             file_bytes = f.read()
