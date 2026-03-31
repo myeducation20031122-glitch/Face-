@@ -4,86 +4,102 @@ import os
 import tempfile
 import shutil
 
-# --- පේජ් එකේ පෙනුම (Hacker Style) ---
-st.set_page_config(page_title="YT Downloader Pro", page_icon="🎬")
+# --- පේජ් එකේ පෙනුම (Hacker Interface) ---
+st.set_page_config(page_title="YT Harvester V3", page_icon="🕵️‍♂️")
 
 st.markdown("""
 <style>
-    .main { background-color: #0e1117; color: #00ff41; }
-    .stTextInput>div>div>input { background-color: #1a1c24; color: #00ff41; border: 1px solid #00ff41; }
-    .stButton>button { background-color: #00ff41; color: black; font-weight: bold; width: 100%; border-radius: 10px; }
+    .stApp { background-color: #0a0a0a; color: #00ff41; }
+    .stTextInput>div>div>input { background-color: #111; color: #00ff41; border: 1px solid #00ff41; }
+    .stSelectbox>div>div>div { background-color: #111; color: #00ff41; }
+    .stButton>button { background-color: #00ff41; color: black; font-weight: bold; width: 100%; border: none; }
     .stButton>button:hover { background-color: #ff0000; color: white; }
-    h1 { text-align: center; font-family: 'Courier New', monospace; color: #00ff41; text-shadow: 2px 2px #000; }
+    h1 { text-align: center; font-family: 'Courier New', monospace; text-shadow: 3px 3px #000; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🎬 YT VIDEO HARVESTER")
+st.markdown("<h1>💀 YT HARVESTER v3.0 💀</h1>", unsafe_allow_html=True)
 
-# FFmpeg තියෙනවාද බලමු
-ffmpeg_exists = shutil.which("ffmpeg")
-
-if not ffmpeg_exists:
-    st.sidebar.warning("⚠️ FFmpeg හමුවුණේ නැහැ. High Quality වීඩියෝ වලට මේක අත්‍යවශ්‍යයි.")
+# FFmpeg Status Check
+ffmpeg_path = shutil.which("ffmpeg")
+if ffmpeg_path:
+    st.sidebar.success("✅ SYSTEM READY: FFmpeg detected.")
 else:
-    st.sidebar.success("✅ FFmpeg සක්‍රීයයි!")
+    st.sidebar.error("⚠️ SYSTEM CRITICAL: FFmpeg missing.")
 
-# --- UI එක ---
-url = st.text_input("🔗 YouTube Link එක මෙතනට පේස්ට් කරන්න:", placeholder="https://www.youtube.com/watch?v=...")
+# --- ⚙️ TARGET ACQUISITION ---
+url = st.text_input("🔗 [ENTER TARGET URL] > ", placeholder="Paste YouTube link here...")
 
 if url:
     try:
-        with st.spinner("🔍 වීඩියෝ එක පරීක්ෂා කරමින්..."):
-            ydl_opts = {'quiet': True, 'noplaylist': True}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        # වීඩියෝ එකේ විස්තර ගන්න කලින් පාවිච්චි කරන options
+        fetch_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'nocheckcertificate': True,
+            'addheader': [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')],
+        }
+
+        with st.spinner("🕵️‍♂️ SCANNING TARGET DATA..."):
+            with yt_dlp.YoutubeDL(fetch_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                st.image(info.get('thumbnail'), width=400)
-                st.write(f"🎯 **Target:** {info.get('title')}")
+                st.image(info.get('thumbnail'), width=450)
+                st.write(f"📂 **FILE IDENTIFIED:** {info.get('title')}")
 
-        option = st.selectbox("📥 Format එක තෝරන්න:", ["Video (MP4)", "Audio (MP3)"])
+        mode = st.selectbox("📂 SELECT MODE:", ["Video (MP4 High Quality)", "Audio (MP3 High Quality)"])
 
-        if st.button("🚀 DOWNLOAD NOW"):
+        if st.button("⚡ INITIATE HARVESTING"):
             with tempfile.TemporaryDirectory() as tmpdir:
                 status = st.empty()
-                status.info("⏳ වැඩේ පටන් ගත්තා... පොඩ්ඩක් ඉන්න බොසා.")
+                status.warning("📡 ACCESSING YOUTUBE SERVERS... PLEASE WAIT.")
 
-                # Download Options
-                if option == "Audio (MP3)":
-                    opts = {
-                        'format': 'bestaudio/best',
-                        'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
-                        'postprocessors': [{
+                # ඔයා දුන්නු සුපිරි Options ටික මෙන්න මෙතනට ඇඩ් කළා
+                dl_opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'nocheckcertificate': True,
+                    'ignoreerrors': False,
+                    'logtostderr': False,
+                    'addheader': [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')],
+                    'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
+                    'noplaylist': True,
+                }
+
+                # Mode එක අනුව Options වෙනස් කරනවා
+                if mode == "Audio (MP3)":
+                    dl_opts['format'] = 'bestaudio/best'
+                    if ffmpeg_path:
+                        dl_opts['postprocessors'] = [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'mp3',
                             'preferredquality': '192',
-                        }] if ffmpeg_exists else [],
-                    }
+                        }]
                 else:
-                    opts = {
-                        'format': 'bestvideo+bestaudio/best' if ffmpeg_exists else 'best',
-                        'outtmpl': os.path.join(tmpdir, '%(title)s.%(ext)s'),
-                        'merge_output_format': 'mp4' if ffmpeg_exists else None,
-                    }
+                    dl_opts['format'] = 'bestvideo+bestaudio/best' if ffmpeg_path else 'best'
+                    dl_opts['merge_output_format'] = 'mp4' if ffmpeg_path else None
 
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info_dict = ydl.extract_info(url, download=True)
-                    file_path = ydl.prepare_filename(info_dict)
+                # Download process
+                with yt_dlp.YoutubeDL(dl_opts) as ydl:
+                    data = ydl.extract_info(url, download=True)
+                    final_file = ydl.prepare_filename(data)
                     
-                    # MP3 එකක් නම් extension එක මාරු වෙන්න පුළුවන්
-                    if option == "Audio (MP3)" and ffmpeg_exists:
-                        file_path = os.path.splitext(file_path)[0] + ".mp3"
+                    # MP3 extension fix
+                    if mode == "Audio (MP3)" and ffmpeg_path:
+                        final_file = os.path.splitext(final_filename)[0] + ".mp3"
 
-                    if os.path.exists(file_path):
-                        with open(file_path, "rb") as f:
+                    if os.path.exists(final_file):
+                        with open(final_file, "rb") as f:
                             st.download_button(
-                                label="💾 Save to Device",
+                                label="💾 DOWNLOAD HARVESTED DATA",
                                 data=f.read(),
-                                file_name=os.path.basename(file_path),
+                                file_name=os.path.basename(final_file),
                                 mime="application/octet-stream"
                             )
-                        st.balloons()
-                        status.success("✅ වැඩේ ගොඩ! පහල Button එකෙන් Save කරගන්න.")
+                        status.success("🏆 MISSION ACCOMPLISHED! DATA SECURED.")
                     else:
-                        status.error("❌ ෆයිල් එක හදාගන්න බැරි වුණා. FFmpeg අවුලක් වෙන්න ඇති.")
+                        status.error("❌ EXTRACTION FAILED: Stream check failed.")
 
     except Exception as e:
-        st.error(f"💀 අවුලක් වුණා: {str(e)}")
+        st.error(f"💀 CORE ERROR: {str(e)}")
+
+st.markdown("<br><hr><center>STATUS: ENCRYPTED | BY: Gem AI</center>", unsafe_allow_html=True)
