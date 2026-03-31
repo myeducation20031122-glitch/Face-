@@ -1,2 +1,2 @@
-ffmpeg
-Pytubefix
+streamlit
+pytubefix
