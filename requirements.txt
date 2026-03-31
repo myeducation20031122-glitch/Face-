@@ -2,3 +2,4 @@ streamlit
 pikepdf
 python-telegram-bot
 asyncio
+yt-dlp
