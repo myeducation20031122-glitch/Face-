@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NEXUS ULTRA | 1080p Particle Symphony</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            overflow: hidden;
+            background: #050510;
+            font-family: 'Segoe UI', 'Poppins', 'Inter', system-ui, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* control panel - glassmorphic */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            z-index: 30;
+            pointer-events: none;
+        }
+
+        .ctrl-btn {
+            pointer-events: auto;
+            background: rgba(20, 20, 45, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 200, 0.3);
+            border-radius: 40px;
+            padding: 8px 18px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #f0f0ff;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-family: inherit;
+        }
+
+        .ctrl-btn.active {
+            background: #6a4eff;
+            border-color: #ffd966;
+            box-shadow: 0 0 12px rgba(106,78,255,0.5);
+            color: white;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(80, 70, 160, 0.8);
+            transform: scale(1.02);
+        }
+
+        .theme-group {
+            display: inline-flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 12px;
+            border-radius: 50px;
+            backdrop-filter: blur(8px);
+        }
+
+        .status {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            color: #ccddff;
+            z-index: 30;
+            pointer-events: none;
+            font-family: monospace;
+        }
+
+        @media (max-width: 700px) {
+            .ctrl-btn { padding: 5px 12px; font-size: 0.7rem; }
+            .theme-group { gap: 5px; padding: 3px 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="controls">
+    <button class="ctrl-btn" id="audioToggle">🎵 Audio Off</button>
+    <button class="ctrl-btn" id="drawToggle">✏️ Draw Mode</button>
+    <button class="ctrl-btn" id="starsToggle">🌠 Shooting Stars</button>
+    <button class="ctrl-btn" id="parallaxToggle">🌀 Parallax</button>
+    <div class="theme-group">
+        <button class="ctrl-btn theme-btn" data-theme="neon">Neon</button>
+        <button class="ctrl-btn theme-btn" data-theme="sunset">Sunset</button>
+        <button class="ctrl-btn theme-btn" data-theme="galaxy">Galaxy</button>
+        <button class="ctrl-btn theme-btn" data-theme="aurora">Aurora</button>
+    </div>
+</div>
+<div class="status" id="statusMsg">✨ ULTRA MODE | 1080p</div>
+
+<script>
+    (function(){
+        // ---------- HIGH-QUALITY CONFIG ----------
+        const canvas = document.createElement('canvas');
+        document.body.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        
+        // ---------- GLOBAL VARIABLES ----------
+        let particles = [];
+        const PARTICLE_COUNT = 240;       // rich but performant
+        let mouseX = width/2, mouseY = height/2;
+        let mouseActive = false;
+        let drawMode = false;
+        let audioActive = false;
+        let shootingStarsActive = true;
+        let parallaxActive = true;
+        let currentTheme = "neon";
+        
+        // Parallax offset
+        let parallaxX = 0, parallaxY = 0;
+        let gyroX = 0, gyroY = 0;
+        
+        // Audio variables
+        let audioContext = null;
+        let microphone = null;
+        let audioData = [0];
+        let audioInitialized = false;
+        
+        // Shooting stars array
+        let shootingStars = [];
+        
+        // Collision & visual
+        const CONNECT_DIST = 135;
+        const MOUSE_ATTRACT = 0.0012;
+        const MOUSE_RADIUS = 180;
+        const TRAIL_FADE = 0.22;
+        
+        // Theme palettes
+        const themes = {
+            neon: { bg1: '#030318', bg2: '#0a0725', lineHueBase: 180, particleSat: 95, particleLight: 70 },
+            sunset: { bg1: '#1a0b1a', bg2: '#2e1a2e', lineHueBase: 20, particleSat: 90, particleLight: 68 },
+            galaxy: { bg1: '#03051a', bg2: '#12123a', lineHueBase: 260, particleSat: 85, particleLight: 72 },
+            aurora: { bg1: '#042026', bg2: '#0a3430', lineHueBase: 150, particleSat: 88, particleLight: 74 }
+        };
+        
+        // ---------- PARTICLE CLASS (with depth for parallax & collision) ----------
+        class Particle {
+            constructor(x, y, vx, vy, size, hue, hueSpeed, z) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = size;
+                this.hue = hue;
+                this.hueSpeed = hueSpeed;
+                this.z = z || Math.random() * 0.8 + 0.2; // depth 0.2..1.0
+                this.mass = size * 0.7;
+            }
+            
+            update(mx, my, isMouseActive, drawActive, audioIntensity) {
+                // mouse attraction (draw mode increases pull)
+                if (isMouseActive && mx && my) {
+                    let dx = mx - this.x;
+                    let dy = my - this.y;
+                    let dist = Math.hypot(dx, dy);
+                    let strength = MOUSE_ATTRACT;
+                    if (drawActive) strength *= 2.2;   // draw mode = stronger attraction
+                    if (dist < MOUSE_RADIUS) {
+                        let force = (1 - dist / MOUSE_RADIUS) * strength;
+                        this.vx += dx * force;
+                        this.vy += dy * force;
+                    }
+                }
+                
+                // audio reactivity: push particles based on volume
+                if (audioIntensity > 0.05) {
+                    let angle = Math.atan2(this.y - height/2, this.x - width/2);
+                    let push = audioIntensity * 2.5;
+                    this.vx += Math.cos(angle) * push * 0.2;
+                    this.vy += Math.sin(angle) * push * 0.2;
+                    // color shift
+                    this.hue += audioIntensity * 4;
+                }
+                
+                // brownian motion
+                this.vx += (Math.random() - 0.5) * 0.07;
+                this.vy += (Math.random() - 0.5) * 0.07;
+                this.vx *= 0.992;
+                this.vy *= 0.992;
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // boundaries
+                const margin = this.size + 3;
+                if (this.x < margin) { this.x = margin; this.vx = -this.vx * 0.94; }
+                if (this.x > width - margin) { this.x = width - margin; this.vx = -this.vx * 0.94; }
+                if (this.y < margin) { this.y = margin; this.vy = -this.vy * 0.94; }
+                if (this.y > height - margin) { this.y = height - margin; this.vy = -this.vy * 0.94; }
+                
+                // hue evolution
+                this.hue += this.hueSpeed;
+                if (this.hue >= 360) this.hue -= 360;
+                if (this.hue < 0) this.hue += 360;
+            }
+            
+            draw(ctx, offsetX, offsetY, theme) {
+                let drawX = this.x + offsetX * this.z;
+                let drawY = this.y + offsetY * this.z;
+                const themeData = themes[theme];
+                const sat = themeData.particleSat;
+                const light = themeData.particleLight;
+                const grad = ctx.createRadialGradient(drawX-2, drawY-2, 1, drawX, drawY, this.size*1.2);
+                grad.addColorStop(0, `hsl(${this.hue}, ${sat}%, ${light+8}%)`);
+                grad.addColorStop(0.7, `hsl(${this.hue}, ${sat}%, ${light-5}%)`);
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, this.size * 1.1, 0, Math.PI*2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, this.size * 0.65, 0, Math.PI*2);
+                ctx.fillStyle = `hsl(${this.hue}, ${sat}%, ${light+12}%)`;
+                ctx.fill();
+            }
+        }
+        
+        // Collision handling
+        function handleCollisions() {
+            for (let i=0; i<particles.length; i++) {
+                for (let j=i+1; j<particles.length; j++) {
+                    const p1 = particles[i];
+                    const p2 = particles[j];
+                    const dx = p1.x - p2.x;
+                    const dy = p1.y - p2.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = (p1.size + p2.size) * 0.9;
+                    if (dist < minDist) {
+                        // elastic collision + color mix
+                        const angle = Math.atan2(dy, dx);
+                        const sin = Math.sin(angle);
+                        const cos = Math.cos(angle);
+                        let vx1 = p1.vx, vy1 = p1.vy;
+                        let vx2 = p2.vx, vy2 = p2.vy;
+                        const v1 = { x: vx1*cos + vy1*sin, y: vy1*cos - vx1*sin };
+                        const v2 = { x: vx2*cos + vy2*sin, y: vy2*cos - vx2*sin };
+                        const m1 = p1.mass, m2 = p2.mass;
+                        const v1f = ((m1-m2)*v1.x + 2*m2*v2.x)/(m1+m2);
+                        const v2f = ((m2-m1)*v2.x + 2*m1*v1.x)/(m1+m2);
+                        v1.x = v1f; v2.x = v2f;
+                        const newVx1 = v1.x*cos - v1.y*sin;
+                        const newVy1 = v1.y*cos + v1.x*sin;
+                        const newVx2 = v2.x*cos - v2.y*sin;
+                        const newVy2 = v2.y*cos + v2.x*sin;
+                        p1.vx = newVx1; p1.vy = newVy1;
+                        p2.vx = newVx2; p2.vy = newVy2;
+                        // color mixing
+                        let avgHue = (p1.hue + p2.hue) / 2;
+                        p1.hue = avgHue; p2.hue = avgHue;
+                        // separate
+                        const overlap = minDist - dist;
+                        const angleSep = Math.atan2(dy, dx);
+                        const sepX = Math.cos(angleSep) * overlap * 0.5;
+                        const sepY = Math.sin(angleSep) * overlap * 0.5;
+                        p1.x += sepX; p1.y += sepY;
+                        p2.x -= sepX; p2.y -= sepY;
+                    }
+                }
+            }
+        }
+        
+        // Connections between particles
+        function drawConnections(offsetX, offsetY) {
+            for (let i=0; i<particles.length; i++) {
+                const p1 = particles[i];
+                const x1 = p1.x + offsetX * p1.z;
+                const y1 = p1.y + offsetY * p1.z;
+                for (let j=i+1; j<particles.length; j++) {
+                    const p2 = particles[j];
+                    const x2 = p2.x + offsetX * p2.z;
+                    const y2 = p2.y + offsetY * p2.z;
+                    const dx = x1 - x2;
+                    const dy = y1 - y2;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < CONNECT_DIST) {
+                        const intensity = 1 - dist/CONNECT_DIST;
+                        const alpha = intensity * 0.55;
+                        const avgHue = (p1.hue + p2.hue)/2;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.strokeStyle = `hsla(${avgHue}, 85%, 70%, ${alpha*0.85})`;
+                        ctx.lineWidth = 1.3 + intensity * 0.8;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        // Background + nebula
+        function drawBackground(theme) {
+            const t = themes[theme];
+            const grad = ctx.createLinearGradient(0,0, width*0.6, height);
+            grad.addColorStop(0, t.bg1);
+            grad.addColorStop(1, t.bg2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,width,height);
+            // floating aurora
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i=0;i<4;i++) {
+                const time = Date.now() * 0.0008 + i;
+                const x = (Math.sin(time)*0.4+0.5)*width;
+                const y = (Math.cos(time*0.7)*0.3+0.5)*height;
+                const rad = width*0.3;
+                const grd = ctx.createRadialGradient(x,y,10,x,y,rad);
+                grd.addColorStop(0, `hsla(${t.lineHueBase + i*30}, 70%, 55%, 0.1)`);
+                grd.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0,0,width,height);
+            }
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        
+        // Shooting stars
+        class ShootingStar {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.active = true;
+                this.x = Math.random() * width;
+                this.y = Math.random() * height * 0.4;
+                this.vx = (Math.random() * 5 + 8) * (Math.random() > 0.5 ? 1 : -1);
+                this.vy = Math.random() * 3 + 4;
+                this.size = Math.random() * 2.5 + 1.5;
+                this.tail = [];
+                this.life = 1.0;
+            }
+            update() {
+                if (!this.active) return;
+                this.tail.unshift({x:this.x, y:this.y});
+                if(this.tail.length > 12) this.tail.pop();
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.008;
+                if(this.x < -100 || this.x > width+100 || this.y > height+100 || this.life <= 0) {
+                    this.active = false;
+                }
+            }
+            draw(ctx) {
+                if(!this.active) return;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                for(let i=0; i<this.tail.length; i++) {
+                    ctx.lineTo(this.tail[i].x, this.tail[i].y);
+                }
+                ctx.strokeStyle = `rgba(255, 220, 150, ${this.life*0.7})`;
+                ctx.lineWidth = this.size;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size*0.9, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(255, 240, 180, ${this.life})`;
+                ctx.fill();
+            }
+        }
+        
+        function initShootingStars(count=8) {
+            shootingStars = [];
+            for(let i=0;i<count;i++) {
+                let s = new ShootingStar();
+                s.active = false; // will be spawned randomly
+                shootingStars.push(s);
+            }
+        }
+        
+        function updateShootingStars() {
+            if(!shootingStarsActive) return;
+            for(let s of shootingStars) {
+                if(!s.active && Math.random() < 0.005) {
+                    s.reset();
+                }
+                if(s.active) s.update();
+            }
+        }
+        
+        function drawShootingStars() {
+            for(let s of shootingStars) {
+                if(s.active) s.draw(ctx);
+            }
+        }
+        
+        // Audio setup
+        async function initAudio() {
+            if(audioContext && microphone) return;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                microphone.connect(analyser);
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                function updateAudio() {
+                    if(audioActive && analyser) {
+                        analyser.getByteFrequencyData(dataArray);
+                        let avg = 0;
+                        for(let i=0;i<dataArray.length;i++) avg += dataArray[i];
+                        avg = avg / dataArray.length / 255;
+                        audioData[0] = Math.min(1, avg * 1.2);
+                    } else {
+                        audioData[0] = 0;
+                    }
+                    requestAnimationFrame(updateAudio);
+                }
+                updateAudio();
+                audioInitialized = true;
+                document.getElementById('statusMsg').innerHTML = '🎤 Audio ON | 1080p';
+            } catch(e) {
+                console.warn("mic error", e);
+                document.getElementById('statusMsg').innerHTML = '🎤 Mic denied | 1080p';
+                audioActive = false;
+            }
+        }
+        
+        // Gyroscope + parallax
+        function initGyro() {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    if(!parallaxActive) return;
+                    gyroX = (e.gamma || 0) / 45;   // -45..45 deg -> -1..1
+                    gyroY = (e.beta || 0) / 45 - 0.5;
+                    gyroX = Math.min(0.8, Math.max(-0.8, gyroX));
+                    gyroY = Math.min(0.8, Math.max(-0.8, gyroY));
+                });
+            }
+        }
+        
+        // Particles initialization
+        function initParticles() {
+            particles = [];
+            for(let i=0;i<PARTICLE_COUNT;i++) {
+                const x = randomRange(50, width-50);
+                const y = randomRange(50, height-50);
+                const vx = randomRange(-0.6, 0.6);
+                const vy = randomRange(-0.6, 0.6);
+                const size = randomRange(2.5, 5.5);
+                let hue = randomRange(0,360);
+                const hueSpeed = randomRange(0.2,0.9) * (Math.random()>0.5?1:-1);
+                const z = randomRange(0.2,1.0);
+                particles.push(new Particle(x,y,vx,vy,size,hue,hueSpeed,z));
+            }
+        }
+        
+        function randomRange(min,max){ return min+Math.random()*(max-min); }
+        
+        // Resize handler
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            initParticles();
+            initShootingStars(6);
+        }
+        
+        // Mouse / touch handlers
+        function handleMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width/rect.width;
+            const scaleY = canvas.height/rect.height;
+            let cx, cy;
+            if(e.touches) {
+                if(e.touches.length) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+                else return;
+            } else {
+                cx = e.clientX; cy = e.clientY;
+            }
+            mouseX = (cx - rect.left)*scaleX;
+            mouseY = (cy - rect.top)*scaleY;
+            mouseX = Math.min(width, Math.max(0, mouseX));
+            mouseY = Math.min(height, Math.max(0, mouseY));
+            mouseActive = true;
+        }
+        function handleLeave() { mouseActive = false; }
+        
+        // Animation loop
+        let lastTime = 0;
+        function animate(now) {
+            if(!canvas.isConnected) return;
+            // trail effect
+            ctx.fillStyle = `rgba(0,0,0,${TRAIL_FADE})`;
+            ctx.fillRect(0,0,width,height);
+            
+            // background
+            drawBackground(currentTheme);
+            
+            // get audio intensity
+            let audioIntensity = audioActive ? (audioData[0] || 0) : 0;
+            
+            // parallax offset from mouse + gyro
+            let offsetX = 0, offsetY = 0;
+            if(parallaxActive) {
+                let mouseNormX = (mouseX/width - 0.5)*2;
+                let mouseNormY = (mouseY/height - 0.5)*2;
+                offsetX = (mouseNormX * 25 + gyroX * 30);
+                offsetY = (mouseNormY * 25 + gyroY * 30);
+                offsetX = Math.min(35, Math.max(-35, offsetX));
+                offsetY = Math.min(35, Math.max(-35, offsetY));
+            }
+            
+            // update particles
+            for(let p of particles) {
+                p.update(mouseX, mouseY, mouseActive, drawMode, audioIntensity);
+            }
+            
+            // collisions
+            handleCollisions();
+            
+            // draw connections (with parallax offset)
+            drawConnections(offsetX, offsetY);
+            
+            // shooting stars
+            updateShootingStars();
+            drawShootingStars();
+            
+            // draw particles (with offset)
+            for(let p of particles) {
+                p.draw(ctx, offsetX, offsetY, currentTheme);
+            }
+            
+            // extra glow
+            ctx.globalCompositeOperation = 'lighter';
+            for(let p of particles) {
+                if(p.size>3.2){
+                    ctx.beginPath();
+                    ctx.arc(p.x+offsetX*p.z, p.y+offsetY*p.z, p.size*0.7,0,Math.PI*2);
+                    ctx.fillStyle = `hsla(${p.hue}, 85%, 65%, 0.18)`;
+                    ctx.fill();
+                }
+            }
+            ctx.globalCompositeOperation = 'source-over';
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // UI event binding
+        function bindUI() {
+            document.getElementById('audioToggle').onclick = () => {
+                if(!audioInitialized) initAudio();
+                audioActive = !audioActive;
+                document.getElementById('audioToggle').innerText = audioActive ? '🎵 Audio On' : '🎵 Audio Off';
+                document.getElementById('audioToggle').classList.toggle('active', audioActive);
+            };
+            document.getElementById('drawToggle').onclick = () => {
+                drawMode = !drawMode;
+                document.getElementById('drawToggle').classList.toggle('active', drawMode);
+                document.getElementById('drawToggle').innerText = drawMode ? '✏️ Draw ON' : '✏️ Draw Mode';
+            };
+            document.getElementById('starsToggle').onclick = () => {
+                shootingStarsActive = !shootingStarsActive;
+                document.getElementById('starsToggle').classList.toggle('active', shootingStarsActive);
+                document.getElementById('starsToggle').innerText = shootingStarsActive ? '🌠 Stars ON' : '🌠 Stars OFF';
+            };
+            document.getElementById('parallaxToggle').onclick = () => {
+                parallaxActive = !parallaxActive;
+                document.getElementById('parallaxToggle').classList.toggle('active', parallaxActive);
+                if(!parallaxActive) { gyroX=0; gyroY=0; }
+            };
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.onclick = () => {
+                    currentTheme = btn.dataset.theme;
+                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                };
+            });
+            // default active theme button
+            document.querySelector('.theme-btn[data-theme="neon"]').classList.add('active');
+        }
+        
+        // start everything
+        window.addEventListener('resize', resizeCanvas);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseleave', handleLeave);
+        canvas.addEventListener('touchmove', handleMove, {passive:false});
+        canvas.addEventListener('touchstart', handleMove);
+        canvas.addEventListener('touchend', handleLeave);
+        resizeCanvas();
+        bindUI();
+        initGyro();
+        requestAnimationFrame(animate);
+    })();
+</script>
+</body>
+</html>
