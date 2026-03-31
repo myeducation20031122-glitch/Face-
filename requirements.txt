@@ -1,5 +1,5 @@
 streamlit
-pikepdf
+ffmpeg
 python-telegram-bot
 asyncio
 yt-dlp
