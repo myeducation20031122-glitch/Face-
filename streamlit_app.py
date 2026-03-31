@@ -1,185 +1,181 @@
 import streamlit as st
-import asyncio
+import yt_dlp
 import os
-import pikepdf
-import threading
+import tempfile
 import time
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from pathlib import Path
 
-# --- 🛠️ CONFIGURATION ---
-# උඹ කිව්වා වගේ Token එක මෙතනම තියෙනවා බොසා!
-TOKEN = "7747068384:AAEcjBAH-4vVMEzJtmKeozOZjR7J3vOGvBo"
+# ---------- Page configuration ----------
+st.set_page_config(
+    page_title="YouTube Downloader",
+    page_icon="🎬",
+    layout="centered"
+)
 
-st.set_page_config(page_title="Victims Bot Pro", page_icon="🕵️‍♂️")
-st.title("🕵️‍♂️ Victims Bot - Pro Control Panel")
-st.markdown("---")
+# ---------- Custom CSS for better appearance ----------
+st.markdown("""
+<style>
+    /* Main container */
+    .main {
+        padding: 2rem;
+    }
+    /* Title */
+    .title {
+        text-align: center;
+        color: #FF4B4B;
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    /* Subtitle */
+    .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    /* Download button */
+    .stButton button {
+        background-color: #FF4B4B;
+        color: white;
+        font-weight: bold;
+        border-radius: 8px;
+        width: 100%;
+        transition: 0.3s;
+    }
+    .stButton button:hover {
+        background-color: #ff1e1e;
+        transform: scale(1.02);
+    }
+    /* Custom info box */
+    .info-box {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-top: 1rem;
+        text-align: center;
+    }
+    footer {
+        text-align: center;
+        margin-top: 3rem;
+        color: #aaa;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# User States මතක තියාගන්න Session State එක පාවිච්චි කරනවා
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = {}
+# ---------- Helper functions ----------
+def get_video_info(url):
+    """Fetch video title and available formats."""
+    ydl_opts = {'quiet': True, 'no_warnings': True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        title = info.get('title', 'video')
+        formats = info.get('formats', [])
+        return title, formats
 
-# --- 🤖 BOT CORE LOGIC ---
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("📤 Upload PDF", callback_data='help')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "👋 හායි බොසා! මම Victims Bot.\nඔයාගේ Locked PDF එකක් එවන්න, මම ඒක පරීක්ෂා කරලා එවන්නම්. 🔓", 
-        reply_markup=reply_markup
-    )
-
-async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    doc = update.message.document
-    
-    if not doc.file_name.lower().endswith('.pdf'):
-        await update.message.reply_text("❌ PDF එකක් විතරක් එවන්න බොසා!")
-        return
-
-    status = await update.message.reply_text("📥 ගොනුව බාගත කරමින්... 🔍")
-    file = await context.bot.get_file(doc.file_id)
-    
-    # අද්විතීය නමක් දෙනවා එකම වෙලේ කිහිප දෙනෙක් පාවිච්චි කළොත් පටලැවෙන්නේ නැති වෙන්න
-    path = f"file_{user_id}_{int(time.time())}.pdf"
-    await file.download_to_drive(path)
-
-    # User ගේ විස්තර Save කරගන්නවා
-    st.session_state.user_data[user_id] = {"path": path, "name": doc.file_name, "state": None}
-    
-    keyboard = [
-        [InlineKeyboardButton("🔑 I Know Password", callback_data='know_pwd')],
-        [InlineKeyboardButton("📊 Password Range", callback_data='know_range')],
-        [InlineKeyboardButton("🤷 I Don't Know Anything", callback_data='know_nothing')]
-    ]
-    await status.edit_text(
-        f"📄 ගොනුව: {doc.file_name}\nදැන් මොකක්ද කරන්න ඕනේ?", 
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    await query.answer()
-
-    if user_id not in st.session_state.user_data:
-        await query.edit_message_text("⚠️ කරුණාකර නැවත PDF එක එවන්න (Session Expired).")
-        return
-
-    data = query.data
-    if data == 'know_pwd':
-        st.session_state.user_data[user_id]['state'] = 'WAIT_PWD'
-        await query.edit_message_text("⌨️ කරුණාකර PDF එකේ Password එක එවන්න:")
-        
-    elif data == 'know_range':
-        st.session_state.user_data[user_id]['state'] = 'WAIT_RANGE'
-        await query.edit_message_text("📏 පරාසය එවන්න (උදා: 25000000-26000000):")
-        
-    elif data == 'know_nothing':
-        keyboard = [
-            [InlineKeyboardButton("🔢 Numbers Only", callback_data='brute_num')],
-            [InlineKeyboardButton("🔠 Letters Only", callback_data='brute_let')],
-            [InlineKeyboardButton("🔀 Mixed Mode", callback_data='brute_mix')]
-        ]
-        await query.edit_message_text("මොන වගේ Brute Force එකක්ද ඕනේ?", reply_markup=InlineKeyboardMarkup(keyboard))
-        
-    elif data == 'brute_num':
-        # Default Auto Brute Force Range එක
-        await start_brute(query, context, user_id, 25880000, 25889999)
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in st.session_state.user_data: return
-    
-    state = st.session_state.user_data[user_id].get('state')
-    text = update.message.text
-    path = st.session_state.user_data[user_id]['path']
-
-    if state == 'WAIT_PWD':
+def download_video(url, format_spec, progress_placeholder):
+    """Download video with given format spec and update progress."""
+    # Create a temporary directory to store the file
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_template = os.path.join(tmpdir, '%(title)s.%(ext)s')
+        ydl_opts = {
+            'format': format_spec,
+            'outtmpl': output_template,
+            'quiet': True,
+            'no_warnings': True,
+            'progress_hooks': [lambda d: update_progress(d, progress_placeholder)],
+        }
         try:
-            with pikepdf.open(path, password=text) as pdf:
-                out = f"unlocked_{user_id}.pdf"
-                pdf.save(out)
-                await update.message.reply_document(document=open(out, 'rb'), caption="🔓 සාර්ථකයි! මෙන්න Unlocked PDF එක.")
-                os.remove(out)
-        except:
-            await update.message.reply_text("❌ වැරදි Password එකක්. නැවත උත්සාහ කරන්න.")
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                # If the downloaded file is a webm/mkv and we want mp4, yt-dlp may have merged it
+                # We just return the actual file path
+                return filename
+        except Exception as e:
+            st.error(f"Download failed: {e}")
+            return None
 
-    elif state == 'WAIT_RANGE':
-        if '-' in text:
-            try:
-                s, e = map(int, text.split('-'))
-                await update.message.reply_text(f"🚀 පරාසය පරීක්ෂා කිරීම ආරම්භ කළා: {s} - {e}")
-                await start_brute(update, context, user_id, s, e)
-            except:
-                await update.message.reply_text("❌ වැරදි Format එකක්. (උදා: 100-500)")
+def update_progress(d, placeholder):
+    """Callback to update download progress."""
+    if d['status'] == 'downloading':
+        percent = d.get('_percent_str', '0%').strip()
+        speed = d.get('_speed_str', 'N/A').strip()
+        eta = d.get('_eta_str', 'N/A').strip()
+        placeholder.markdown(f"**Downloading...** {percent} at {speed} – ETA: {eta}")
+    elif d['status'] == 'finished':
+        placeholder.markdown("✅ **Download finished! Processing...**")
 
-async def start_brute(event, context, user_id, start_r, end_r):
-    data = st.session_state.user_data[user_id]
-    path = data['path']
-    found = False
-    
-    # Progress Message එක
-    prog_msg = await context.bot.send_message(chat_id=user_id, text="⏳ සෙවීම ආරම්භ කළා...")
-    last_update = time.time()
+# ---------- App layout ----------
+st.markdown('<div class="title">🎬 YouTube Downloader</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Download any YouTube video in high quality</div>', unsafe_allow_html=True)
 
-    try:
-        for pwd in range(start_r, end_r + 1):
-            pwd_str = str(pwd)
-            
-            # Rate limit වැළැක්වීමට තත්පර 3කට වරක් update කරයි
-            if time.time() - last_update > 3:
-                try:
-                    await context.bot.edit_message_text(
-                        chat_id=user_id, 
-                        message_id=prog_msg.message_id, 
-                        text=f"🔍 පරීක්ෂා කරමින්: `{pwd_str}`"
-                    )
-                except: pass
-                last_update = time.time()
+# URL input
+url = st.text_input("🔗 **Video URL**", placeholder="https://www.youtube.com/watch?v=...")
 
-            try:
-                with pikepdf.open(path, password=pwd_str) as pdf:
-                    out = f"final_{user_id}.pdf"
-                    pdf.save(out)
-                    await context.bot.send_document(
-                        chat_id=user_id, 
-                        document=open(out, 'rb'), 
-                        caption=f"✅ Password එක හමු වුණා!\n🔑 Password: `{pwd_str}`"
-                    )
-                    os.remove(out)
-                    found = True
-                    break
-            except pikepdf.PasswordError:
-                continue
-        
-        if not found:
-            await context.bot.send_message(chat_id=user_id, text="❌ ලබාදුන් පරාසය තුළ Password එක හමු වුණේ නැත.")
-            
-    finally:
-        # File එක අනිවාර්යයෙන්ම අයින් කරනවා
-        if os.path.exists(path): os.remove(path)
-        st.session_state.user_data.pop(user_id, None)
+if url:
+    with st.spinner("Fetching video information..."):
+        try:
+            title, formats = get_video_info(url)
+            st.success(f"✅ Found: **{title}**")
+        except Exception as e:
+            st.error(f"Could not fetch video info. Please check the URL.\n\nError: {e}")
+            st.stop()
 
-# --- 🚀 RUNNER ---
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
-    app.add_handler(CallbackQueryHandler(button_click))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    
-    print("🚀 Bot is running...")
-    app.run_polling()
+    # Choose download type
+    download_type = st.radio(
+        "📥 **Select download type**",
+        ["Best quality (video + audio)", "Audio only (MP3)", "Choose specific quality"]
+    )
 
-# Streamlit එක load වුණු ගමන් Background එකේ Bot පටන් ගන්නවා
-if "bot_active" not in st.session_state:
-    st.info("🛰️ Bot Server එක සක්‍රීය කරමින්... කරුණාකර රැඳී සිටින්න.")
-    thread = threading.Thread(target=run_bot, daemon=True)
-    thread.start()
-    st.session_state.bot_active = True
+    format_spec = None
+    if download_type == "Best quality (video + audio)":
+        format_spec = "bestvideo+bestaudio/best"
+        st.info("🎧 Requires ffmpeg to merge video and audio streams.")
+    elif download_type == "Audio only (MP3)":
+        format_spec = "bestaudio/best"
+        st.info("🎵 Will download as MP3 (requires ffmpeg).")
+    else:  # Choose specific quality
+        # Build a list of readable format descriptions
+        format_options = {}
+        for f in formats:
+            # Skip non-video formats if we want video+audio
+            if f.get('vcodec') != 'none' or f.get('acodec') != 'none':
+                resolution = f.get('resolution', 'audio only')
+                if resolution == 'audio only':
+                    desc = f"Audio only ({f.get('abr', '?')} kbps)"
+                else:
+                    desc = f"{resolution} ({f.get('fps', '?')} fps) – {f.get('ext', '?')}"
+                # Use format id as value
+                format_options[desc] = f['format_id']
+        if format_options:
+            selected_desc = st.selectbox("Choose a format", list(format_options.keys()))
+            format_spec = format_options[selected_desc]
+        else:
+            st.error("No suitable formats found.")
+            st.stop()
 
-st.success("✅ Victims Bot දැන් සක්‍රීයයි! Telegram එකේ වැඩ පටන් ගන්න.")
+    # Download button
+    if st.button("🚀 Download Now", use_container_width=True):
+        # Create a placeholder for progress
+        progress_placeholder = st.empty()
+
+        with st.status("Downloading...", expanded=True) as status:
+            file_path = download_video(url, format_spec, progress_placeholder)
+            if file_path and os.path.exists(file_path):
+                status.update(label="Download complete!", state="complete", expanded=False)
+                # Provide download button
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+                file_name = os.path.basename(file_path)
+                st.download_button(
+                    label="💾 Click here to save the file",
+                    data=file_bytes,
+                    file_name=file_name,
+                    mime="video/mp4" if file_name.endswith(('.mp4', '.mkv')) else "audio/mpeg",
+                    use_container_width=True
+                )
+            else:
+                status.update(label="Download failed", state="error")
+
+# Footer
+st.markdown('<footer>⚠️ Respect YouTube’s terms of service. Download only content you have permission to.</footer>', unsafe_allow_html=True)
