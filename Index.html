@@ -2,610 +2,555 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NEXUS ULTRA | 1080p Particle Symphony</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Atom Visualization - Nucleus, Energy Levels, Sublevels & Orbitals</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-        }
-
         body {
+            margin: 0;
             overflow: hidden;
-            background: #050510;
-            font-family: 'Segoe UI', 'Poppins', 'Inter', system-ui, sans-serif;
+            font-family: 'Poppins', 'Segoe UI', 'Arial', sans-serif;
         }
-
-        canvas {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            cursor: crosshair;
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #00aaff;
+            pointer-events: none;
+            z-index: 10;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-weight: 500;
+            max-width: 260px;
         }
-
-        /* control panel - glassmorphic */
-        .controls {
-            position: fixed;
+        #info h1 {
+            margin: 0 0 5px;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+        #info p {
+            margin: 0;
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+        #controls-panel {
+            position: absolute;
             bottom: 20px;
             left: 20px;
-            right: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 12px;
-            z-index: 30;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            color: #ccc;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
             pointer-events: none;
+            z-index: 10;
+            font-weight: 300;
         }
-
-        .ctrl-btn {
-            pointer-events: auto;
-            background: rgba(20, 20, 45, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 200, 0.3);
-            border-radius: 40px;
-            padding: 8px 18px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: #f0f0ff;
-            cursor: pointer;
-            transition: 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            font-family: inherit;
-        }
-
-        .ctrl-btn.active {
-            background: #6a4eff;
-            border-color: #ffd966;
-            box-shadow: 0 0 12px rgba(106,78,255,0.5);
-            color: white;
-        }
-
-        .ctrl-btn:hover {
-            background: rgba(80, 70, 160, 0.8);
-            transform: scale(1.02);
-        }
-
-        .theme-group {
-            display: inline-flex;
-            gap: 8px;
-            background: rgba(0,0,0,0.3);
-            padding: 5px 12px;
-            border-radius: 50px;
-            backdrop-filter: blur(8px);
-        }
-
-        .status {
-            position: fixed;
-            top: 16px;
-            right: 16px;
+        .instruction {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
             background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px);
-            padding: 5px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            color: #ccddff;
-            z-index: 30;
+            padding: 5px 10px;
+            border-radius: 8px;
+            color: #aaa;
+            font-size: 12px;
             pointer-events: none;
             font-family: monospace;
         }
-
-        @media (max-width: 700px) {
-            .ctrl-btn { padding: 5px 12px; font-size: 0.7rem; }
-            .theme-group { gap: 5px; padding: 3px 8px; }
+        @media (max-width: 600px) {
+            #info { font-size: 10px; max-width: 200px; top: 10px; left: 10px; }
+            .instruction { font-size: 9px; }
         }
     </style>
 </head>
 <body>
-<div class="controls">
-    <button class="ctrl-btn" id="audioToggle">🎵 Audio Off</button>
-    <button class="ctrl-btn" id="drawToggle">✏️ Draw Mode</button>
-    <button class="ctrl-btn" id="starsToggle">🌠 Shooting Stars</button>
-    <button class="ctrl-btn" id="parallaxToggle">🌀 Parallax</button>
-    <div class="theme-group">
-        <button class="ctrl-btn theme-btn" data-theme="neon">Neon</button>
-        <button class="ctrl-btn theme-btn" data-theme="sunset">Sunset</button>
-        <button class="ctrl-btn theme-btn" data-theme="galaxy">Galaxy</button>
-        <button class="ctrl-btn theme-btn" data-theme="aurora">Aurora</button>
+    <div id="info">
+        <h1>✨ පරමාණුවේ ව්‍යුහය | Atomic Structure ✨</h1>
+        <p>න්‍යෂ්ටිය (Nucleus) | ශක්ති මට්ටම් (Energy Levels: K, L, M) | උප ශක්ති මට්ටම් (s, p, d) | කාක්ෂික (Orbitals)</p>
+        <p style="font-size:11px; margin-top:4px;">🔵 s-කාක්ෂික (ගෝලාකාර) | 🔴 p-කාක්ෂික (dumbbell) | 🟣 d-කාක්ෂික (cloverleaf)</p>
     </div>
-</div>
-<div class="status" id="statusMsg">✨ ULTRA MODE | 1080p</div>
+    <div id="controls-panel">
+        🖱️ මූසිකයෙන් කරකවන්න / අතින් ගෙන යන්න | 🔍 සූම් කරන්න
+    </div>
+    <div class="instruction">
+        🧬 3D Interactive Animation
+    </div>
 
-<script>
-    (function(){
-        // ---------- HIGH-QUALITY CONFIG ----------
-        const canvas = document.createElement('canvas');
-        document.body.appendChild(canvas);
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        
-        // ---------- GLOBAL VARIABLES ----------
-        let particles = [];
-        const PARTICLE_COUNT = 240;       // rich but performant
-        let mouseX = width/2, mouseY = height/2;
-        let mouseActive = false;
-        let drawMode = false;
-        let audioActive = false;
-        let shootingStarsActive = true;
-        let parallaxActive = true;
-        let currentTheme = "neon";
-        
-        // Parallax offset
-        let parallaxX = 0, parallaxY = 0;
-        let gyroX = 0, gyroY = 0;
-        
-        // Audio variables
-        let audioContext = null;
-        let microphone = null;
-        let audioData = [0];
-        let audioInitialized = false;
-        
-        // Shooting stars array
-        let shootingStars = [];
-        
-        // Collision & visual
-        const CONNECT_DIST = 135;
-        const MOUSE_ATTRACT = 0.0012;
-        const MOUSE_RADIUS = 180;
-        const TRAIL_FADE = 0.22;
-        
-        // Theme palettes
-        const themes = {
-            neon: { bg1: '#030318', bg2: '#0a0725', lineHueBase: 180, particleSat: 95, particleLight: 70 },
-            sunset: { bg1: '#1a0b1a', bg2: '#2e1a2e', lineHueBase: 20, particleSat: 90, particleLight: 68 },
-            galaxy: { bg1: '#03051a', bg2: '#12123a', lineHueBase: 260, particleSat: 85, particleLight: 72 },
-            aurora: { bg1: '#042026', bg2: '#0a3430', lineHueBase: 150, particleSat: 88, particleLight: 74 }
-        };
-        
-        // ---------- PARTICLE CLASS (with depth for parallax & collision) ----------
-        class Particle {
-            constructor(x, y, vx, vy, size, hue, hueSpeed, z) {
-                this.x = x;
-                this.y = y;
-                this.vx = vx;
-                this.vy = vy;
-                this.size = size;
-                this.hue = hue;
-                this.hueSpeed = hueSpeed;
-                this.z = z || Math.random() * 0.8 + 0.2; // depth 0.2..1.0
-                this.mass = size * 0.7;
+    <!-- Import Three.js core and add-ons -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
             }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- Setup Scene, Camera, Renderers ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050b1a); // deep space color
+        scene.fog = new THREE.FogExp2(0x050b1a, 0.008); // subtle fog for depth
+
+        // Camera: perspective
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(7, 5, 8);
+        camera.lookAt(0, 0, 0);
+
+        // WebGL Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // enable shadows for better depth
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // CSS2 Renderer for labels (always face camera)
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+
+        // --- Controls (with auto-rotate optional, but user can override) ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.2;
+        controls.enableZoom = true;
+        controls.enablePan = true;
+        controls.zoomSpeed = 1.0;
+        controls.rotateSpeed = 1.0;
+        controls.target.set(0, 0, 0);
+
+        // --- Lighting for dramatic effect ---
+        // Ambient light
+        const ambientLight = new THREE.AmbientLight(0x222222);
+        scene.add(ambientLight);
+        // Main directional light
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(3, 5, 2);
+        dirLight.castShadow = true;
+        dirLight.receiveShadow = false;
+        scene.add(dirLight);
+        // Back rim light
+        const backLight = new THREE.PointLight(0x4466cc, 0.5);
+        backLight.position.set(-2, 1, -3);
+        scene.add(backLight);
+        // Warm fill from below
+        const fillLight = new THREE.PointLight(0xffaa66, 0.4);
+        fillLight.position.set(0, -2, 0);
+        scene.add(fillLight);
+        // Glow effect around nucleus: point light
+        const nucleusLight = new THREE.PointLight(0xff6600, 0.8, 8);
+        nucleusLight.position.set(0, 0, 0);
+        scene.add(nucleusLight);
+        
+        // Starfield background particles (simple)
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1200;
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            starPositions[i*3] = (Math.random() - 0.5) * 200;
+            starPositions[i*3+1] = (Math.random() - 0.5) * 100;
+            starPositions[i*3+2] = (Math.random() - 0.5) * 80 - 40;
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.6 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+        
+        // --- Helper: Create CSS2D Label ---
+        function makeLabel(text, color, fontSize = '1rem', bgOpacity = 0.6) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = color;
+            div.style.fontSize = fontSize;
+            div.style.fontWeight = 'bold';
+            div.style.textShadow = '1px 1px 0px black';
+            div.style.background = `rgba(0, 0, 0, ${bgOpacity})`;
+            div.style.padding = '4px 10px';
+            div.style.borderRadius = '20px';
+            div.style.borderLeft = `3px solid ${color}`;
+            div.style.fontFamily = 'monospace';
+            div.style.backdropFilter = 'blur(4px)';
+            div.style.pointerEvents = 'none';
+            div.style.whiteSpace = 'nowrap';
+            return new CSS2DObject(div);
+        }
+
+        // ========= 1. NUCLEUS (core) =========
+        const nucleusGeo = new THREE.SphereGeometry(0.65, 64, 64);
+        const nucleusMat = new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xaa3300, emissiveIntensity: 0.6, metalness: 0.7, roughness: 0.3 });
+        const nucleus = new THREE.Mesh(nucleusGeo, nucleusMat);
+        nucleus.castShadow = true;
+        nucleus.receiveShadow = false;
+        scene.add(nucleus);
+        
+        // Add a tiny glowing corona around nucleus
+        const coronaGeo = new THREE.SphereGeometry(0.85, 32, 32);
+        const coronaMat = new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0.15, side: THREE.BackSide });
+        const corona = new THREE.Mesh(coronaGeo, coronaMat);
+        scene.add(corona);
+        
+        // Label: Nucleus
+        const nucleusLabel = makeLabel('🔬 න්‍යෂ්ටිය (Nucleus)', '#ffaa66', '0.9rem', 0.7);
+        nucleusLabel.position.set(0, 0.9, 0);
+        scene.add(nucleusLabel);
+        
+        // ========= 2. ENERGY LEVEL SHELLS (transparent wireframes) =========
+        // Radii: K (n=1): 1.5, L (n=2): 2.6, M (n=3): 3.7
+        const shellRadii = [1.5, 2.6, 3.7];
+        const shellColors = [0x33aaff, 0x44ccff, 0x66ddff];
+        const shellNames = ['K (n=1)', 'L (n=2)', 'M (n=3)'];
+        
+        const shells = [];
+        shellRadii.forEach((radius, idx) => {
+            const wireframeGeo = new THREE.SphereGeometry(radius, 48, 24);
+            const edgesGeo = new THREE.EdgesGeometry(wireframeGeo);
+            const wireMat = new THREE.LineBasicMaterial({ color: shellColors[idx], linewidth: 1 }); // linewidth not supported everywhere, but color works
+            const wireframe = new THREE.LineSegments(edgesGeo, wireMat);
+            scene.add(wireframe);
+            shells.push(wireframe);
             
-            update(mx, my, isMouseActive, drawActive, audioIntensity) {
-                // mouse attraction (draw mode increases pull)
-                if (isMouseActive && mx && my) {
-                    let dx = mx - this.x;
-                    let dy = my - this.y;
-                    let dist = Math.hypot(dx, dy);
-                    let strength = MOUSE_ATTRACT;
-                    if (drawActive) strength *= 2.2;   // draw mode = stronger attraction
-                    if (dist < MOUSE_RADIUS) {
-                        let force = (1 - dist / MOUSE_RADIUS) * strength;
-                        this.vx += dx * force;
-                        this.vy += dy * force;
-                    }
-                }
-                
-                // audio reactivity: push particles based on volume
-                if (audioIntensity > 0.05) {
-                    let angle = Math.atan2(this.y - height/2, this.x - width/2);
-                    let push = audioIntensity * 2.5;
-                    this.vx += Math.cos(angle) * push * 0.2;
-                    this.vy += Math.sin(angle) * push * 0.2;
-                    // color shift
-                    this.hue += audioIntensity * 4;
-                }
-                
-                // brownian motion
-                this.vx += (Math.random() - 0.5) * 0.07;
-                this.vy += (Math.random() - 0.5) * 0.07;
-                this.vx *= 0.992;
-                this.vy *= 0.992;
-                
-                this.x += this.vx;
-                this.y += this.vy;
-                
-                // boundaries
-                const margin = this.size + 3;
-                if (this.x < margin) { this.x = margin; this.vx = -this.vx * 0.94; }
-                if (this.x > width - margin) { this.x = width - margin; this.vx = -this.vx * 0.94; }
-                if (this.y < margin) { this.y = margin; this.vy = -this.vy * 0.94; }
-                if (this.y > height - margin) { this.y = height - margin; this.vy = -this.vy * 0.94; }
-                
-                // hue evolution
-                this.hue += this.hueSpeed;
-                if (this.hue >= 360) this.hue -= 360;
-                if (this.hue < 0) this.hue += 360;
-            }
+            // Add semi-transparent faint sphere for volume
+            const ghostMat = new THREE.MeshPhongMaterial({ color: shellColors[idx], transparent: true, opacity: 0.035, side: THREE.DoubleSide });
+            const ghostSphere = new THREE.Mesh(wireframeGeo, ghostMat);
+            scene.add(ghostSphere);
             
-            draw(ctx, offsetX, offsetY, theme) {
-                let drawX = this.x + offsetX * this.z;
-                let drawY = this.y + offsetY * this.z;
-                const themeData = themes[theme];
-                const sat = themeData.particleSat;
-                const light = themeData.particleLight;
-                const grad = ctx.createRadialGradient(drawX-2, drawY-2, 1, drawX, drawY, this.size*1.2);
-                grad.addColorStop(0, `hsl(${this.hue}, ${sat}%, ${light+8}%)`);
-                grad.addColorStop(0.7, `hsl(${this.hue}, ${sat}%, ${light-5}%)`);
-                ctx.beginPath();
-                ctx.arc(drawX, drawY, this.size * 1.1, 0, Math.PI*2);
-                ctx.fillStyle = grad;
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(drawX, drawY, this.size * 0.65, 0, Math.PI*2);
-                ctx.fillStyle = `hsl(${this.hue}, ${sat}%, ${light+12}%)`;
-                ctx.fill();
-            }
+            // Label for energy level
+            const levelLabel = makeLabel(`⚡ ශක්ති මට්ටම ${shellNames[idx]}`, `#${shellColors[idx].toString(16)}`, '0.8rem', 0.55);
+            levelLabel.position.set(radius + 0.35, 0.4, 0);
+            scene.add(levelLabel);
+        });
+        
+        // ========= 3. SUBLEVELS & ORBITALS =========
+        // ----- s Orbitals (spherical clouds) -----
+        // 1s (inner)
+        const s1Geo = new THREE.SphereGeometry(0.95, 48, 48);
+        const s1Mat = new THREE.MeshPhongMaterial({ color: 0x33ccff, transparent: true, opacity: 0.2, emissive: 0x004466 });
+        const s1Orbital = new THREE.Mesh(s1Geo, s1Mat);
+        scene.add(s1Orbital);
+        
+        // 2s
+        const s2Geo = new THREE.SphereGeometry(1.95, 64, 64);
+        const s2Mat = new THREE.MeshPhongMaterial({ color: 0x44aaff, transparent: true, opacity: 0.15 });
+        const s2Orbital = new THREE.Mesh(s2Geo, s2Mat);
+        scene.add(s2Orbital);
+        
+        // 3s
+        const s3Geo = new THREE.SphereGeometry(2.95, 64, 64);
+        const s3Mat = new THREE.MeshPhongMaterial({ color: 0x66ccff, transparent: true, opacity: 0.12 });
+        const s3Orbital = new THREE.Mesh(s3Geo, s3Mat);
+        scene.add(s3Orbital);
+        
+        // Labels for s orbitals
+        const s1Label = makeLabel('1s කාක්ෂික (s orbital)', '#88ddff', '0.7rem', 0.5);
+        s1Label.position.set(1.2, 1.1, 0.8);
+        scene.add(s1Label);
+        const s2Label = makeLabel('2s කාක්ෂික', '#88ddff', '0.7rem', 0.5);
+        s2Label.position.set(2.3, 1.8, 0.5);
+        scene.add(s2Label);
+        const s3Label = makeLabel('3s කාක්ෂික', '#88ddff', '0.7rem', 0.5);
+        s3Label.position.set(3.4, 2.2, 0.7);
+        scene.add(s3Label);
+        
+        // ----- p Orbitals (dumbbell shapes) for n=2 and n=3 -----
+        // Helper: create a p-orbital dumbbell along given axis (x, y, or z) with specified distance, color, opacity
+        function createPDumbbell(axis, distance, color, opacity = 0.65, radiusScale = 0.28) {
+            const group = new THREE.Group();
+            const sphereMat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.2, transparent: true, opacity: opacity });
+            const cylinderMat = new THREE.MeshStandardMaterial({ color: color, transparent: true, opacity: opacity * 0.8 });
+            
+            const pos1 = new THREE.Vector3(0, 0, 0);
+            const pos2 = new THREE.Vector3(0, 0, 0);
+            if (axis === 'x') { pos1.set(distance, 0, 0); pos2.set(-distance, 0, 0); }
+            else if (axis === 'y') { pos1.set(0, distance, 0); pos2.set(0, -distance, 0); }
+            else { pos1.set(0, 0, distance); pos2.set(0, 0, -distance); }
+            
+            const sphere1 = new THREE.Mesh(new THREE.SphereGeometry(radiusScale, 32, 32), sphereMat);
+            sphere1.position.copy(pos1);
+            const sphere2 = new THREE.Mesh(new THREE.SphereGeometry(radiusScale, 32, 32), sphereMat);
+            sphere2.position.copy(pos2);
+            group.add(sphere1, sphere2);
+            
+            // Cylinder connecting
+            const start = pos1.clone();
+            const end = pos2.clone();
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            const cylinderGeo = new THREE.CylinderGeometry(0.12, 0.12, length, 8);
+            const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
+            cylinder.position.copy(start.clone().add(end).multiplyScalar(0.5));
+            cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), direction.clone().normalize());
+            group.add(cylinder);
+            
+            return group;
         }
         
-        // Collision handling
-        function handleCollisions() {
-            for (let i=0; i<particles.length; i++) {
-                for (let j=i+1; j<particles.length; j++) {
-                    const p1 = particles[i];
-                    const p2 = particles[j];
-                    const dx = p1.x - p2.x;
-                    const dy = p1.y - p2.y;
-                    const dist = Math.hypot(dx, dy);
-                    const minDist = (p1.size + p2.size) * 0.9;
-                    if (dist < minDist) {
-                        // elastic collision + color mix
-                        const angle = Math.atan2(dy, dx);
-                        const sin = Math.sin(angle);
-                        const cos = Math.cos(angle);
-                        let vx1 = p1.vx, vy1 = p1.vy;
-                        let vx2 = p2.vx, vy2 = p2.vy;
-                        const v1 = { x: vx1*cos + vy1*sin, y: vy1*cos - vx1*sin };
-                        const v2 = { x: vx2*cos + vy2*sin, y: vy2*cos - vx2*sin };
-                        const m1 = p1.mass, m2 = p2.mass;
-                        const v1f = ((m1-m2)*v1.x + 2*m2*v2.x)/(m1+m2);
-                        const v2f = ((m2-m1)*v2.x + 2*m1*v1.x)/(m1+m2);
-                        v1.x = v1f; v2.x = v2f;
-                        const newVx1 = v1.x*cos - v1.y*sin;
-                        const newVy1 = v1.y*cos + v1.x*sin;
-                        const newVx2 = v2.x*cos - v2.y*sin;
-                        const newVy2 = v2.y*cos + v2.x*sin;
-                        p1.vx = newVx1; p1.vy = newVy1;
-                        p2.vx = newVx2; p2.vy = newVy2;
-                        // color mixing
-                        let avgHue = (p1.hue + p2.hue) / 2;
-                        p1.hue = avgHue; p2.hue = avgHue;
-                        // separate
-                        const overlap = minDist - dist;
-                        const angleSep = Math.atan2(dy, dx);
-                        const sepX = Math.cos(angleSep) * overlap * 0.5;
-                        const sepY = Math.sin(angleSep) * overlap * 0.5;
-                        p1.x += sepX; p1.y += sepY;
-                        p2.x -= sepX; p2.y -= sepY;
-                    }
+        // 2p orbitals (n=2) - distance 1.85, vibrant colors: X-red, Y-green, Z-blue
+        const p2X = createPDumbbell('x', 1.85, 0xff6666, 0.6, 0.32);
+        const p2Y = createPDumbbell('y', 1.85, 0x66ff66, 0.6, 0.32);
+        const p2Z = createPDumbbell('z', 1.85, 0x6666ff, 0.6, 0.32);
+        scene.add(p2X, p2Y, p2Z);
+        
+        // 3p orbitals (n=3) - slightly larger distance 2.75, pastel colors
+        const p3X = createPDumbbell('x', 2.75, 0xffaa88, 0.45, 0.35);
+        const p3Y = createPDumbbell('y', 2.75, 0xaaffaa, 0.45, 0.35);
+        const p3Z = createPDumbbell('z', 2.75, 0x88aaff, 0.45, 0.35);
+        scene.add(p3X, p3Y, p3Z);
+        
+        // Labels for p orbitals
+        const p2Label = makeLabel('2p කාක්ෂික (p orbitals)', '#ffaa88', '0.7rem', 0.55);
+        p2Label.position.set(2.0, 1.2, 1.9);
+        scene.add(p2Label);
+        const p3Label = makeLabel('3p කාක්ෂික', '#ffaa88', '0.7rem', 0.55);
+        p3Label.position.set(3.2, 1.5, 2.4);
+        scene.add(p3Label);
+        
+        // ----- d Orbitals for n=3 (simplified cloverleaf shape: four lobes in XY plane, plus hint of other planes) -----
+        const dColor = 0xcc77ff;
+        const dMat = new THREE.MeshStandardMaterial({ color: dColor, emissive: 0x552288, emissiveIntensity: 0.15, transparent: true, opacity: 0.65 });
+        
+        function addDLobe(x, y, z, scaleVal = 0.45) {
+            const lobe = new THREE.Mesh(new THREE.SphereGeometry(scaleVal, 32, 32), dMat);
+            lobe.position.set(x, y, z);
+            scene.add(lobe);
+        }
+        
+        // Primary d orbitals (xy plane lobes) - 45deg angles
+        const dDist = 2.45;
+        const offsets = [
+            [ dDist,  dDist, 0], [-dDist, -dDist, 0], [ dDist, -dDist, 0], [-dDist,  dDist, 0],
+            [ dDist, 0,  dDist], [-dDist, 0, -dDist], [ dDist, 0, -dDist], [-dDist, 0,  dDist],
+            [0,  dDist,  dDist], [0, -dDist, -dDist], [0,  dDist, -dDist], [0, -dDist,  dDist]
+        ];
+        // use only 8 for cleaner look, but include main lobes
+        for (let i = 0; i < 8; i++) {
+            const [x,y,z] = offsets[i];
+            addDLobe(x, y, z, 0.4);
+        }
+        // add connecting lines to visualize d-orbital shape: simple rings around axes? add torus knots optional
+        const dRingMat = new THREE.LineBasicMaterial({ color: 0xbb77ff });
+        const points = [];
+        for (let ang = 0; ang <= Math.PI * 2; ang += 0.2) {
+            const r = 2.65;
+            const x = r * Math.cos(ang);
+            const y = r * Math.sin(ang);
+            points.push(new THREE.Vector3(x, y, 0));
+        }
+        const dRingGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const dRing = new THREE.LineLoop(dRingGeo, dRingMat);
+        scene.add(dRing);
+        
+        const dRing2Points = [];
+        for (let ang = 0; ang <= Math.PI * 2; ang += 0.2) {
+            const r = 2.65;
+            const x = r * Math.cos(ang);
+            const z = r * Math.sin(ang);
+            dRing2Points.push(new THREE.Vector3(x, 0, z));
+        }
+        const dRingGeo2 = new THREE.BufferGeometry().setFromPoints(dRing2Points);
+        const dRing2 = new THREE.LineLoop(dRingGeo2, dRingMat);
+        scene.add(dRing2);
+        
+        const dLabel = makeLabel('3d කාක්ෂික (d orbitals - cloverleaf)', '#cc88ff', '0.75rem', 0.6);
+        dLabel.position.set(3.5, 2.4, 2.0);
+        scene.add(dLabel);
+        
+        // Additional small particles to represent electron cloud / sublevel activity
+        const cloudParticles = [];
+        const particleCount = 400;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            // random points within radius 4.2
+            const rad = Math.random() ** 1.5 * 4.0;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const x = rad * Math.sin(phi) * Math.cos(theta);
+            const y = rad * Math.sin(phi) * Math.sin(theta);
+            const z = rad * Math.cos(phi);
+            particlePositions[i*3] = x;
+            particlePositions[i*3+1] = y;
+            particlePositions[i*3+2] = z;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0x88aaff, size: 0.045, transparent: true, opacity: 0.4 });
+        const particleCloud = new THREE.Points(particleGeo, particleMat);
+        scene.add(particleCloud);
+        
+        // ========= 4. ANIMATED ELECTRONS (orbiting particles to show energy levels) =========
+        const electrons = [];
+        // Electron paths: radius, speed, color, starting angle
+        const electronConfigs = [
+            { radius: 1.55, speed: 1.5, color: 0xffaa66, yOffset: 0.2, angle: 0 },   // K shell
+            { radius: 2.65, speed: 0.9, color: 0xffaa88, yOffset: -0.3, angle: 1.2 }, // L shell
+            { radius: 2.65, speed: 0.95, color: 0xffcc99, yOffset: 0.5, angle: 2.5 }, // L second electron
+            { radius: 3.75, speed: 0.6, color: 0xffffaa, yOffset: 0.4, angle: 0.8 },   // M shell
+            { radius: 3.75, speed: 0.65, color: 0xffdd99, yOffset: -0.5, angle: 2.0 }, 
+            { radius: 3.75, speed: 0.7, color: 0xffccaa, yOffset: 0.1, angle: 3.5 }
+        ];
+        
+        electronConfigs.forEach(cfg => {
+            const electronGeo = new THREE.SphereGeometry(0.12, 24, 24);
+            const electronMat = new THREE.MeshStandardMaterial({ color: cfg.color, emissive: cfg.color, emissiveIntensity: 0.5 });
+            const electron = new THREE.Mesh(electronGeo, electronMat);
+            scene.add(electron);
+            electrons.push({
+                mesh: electron,
+                radius: cfg.radius,
+                speed: cfg.speed,
+                yOffset: cfg.yOffset,
+                angle: cfg.angle,
+                color: cfg.color
+            });
+        });
+        
+        // Additional small orbiting sparks for sublevels (p and d visual dynamics)
+        const sparkCount = 60;
+        const sparks = [];
+        for (let i = 0; i < sparkCount; i++) {
+            const sparkGeo = new THREE.SphereGeometry(0.05, 8, 8);
+            const sparkMat = new THREE.MeshStandardMaterial({ color: 0x77ccff, emissive: 0x3377aa });
+            const spark = new THREE.Mesh(sparkGeo, sparkMat);
+            scene.add(spark);
+            sparks.push({
+                mesh: spark,
+                radius: 1.9 + Math.random() * 2.2,
+                speed: 0.5 + Math.random() * 1.2,
+                angleX: Math.random() * Math.PI * 2,
+                angleY: Math.random() * Math.PI * 2,
+                axis: Math.floor(Math.random() * 3)
+            });
+        }
+        
+        // Additional glowing rings / trails for style
+        const glowRingGeo = new THREE.TorusGeometry(1.5, 0.03, 64, 300);
+        const glowMat = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x2266aa });
+        const ring1 = new THREE.Mesh(glowRingGeo, glowMat);
+        ring1.rotation.x = Math.PI / 2;
+        scene.add(ring1);
+        
+        const ring2 = new THREE.Mesh(glowRingGeo, glowMat);
+        ring2.rotation.z = Math.PI / 3;
+        ring2.rotation.x = Math.PI / 3;
+        ring2.scale.set(1.7, 1.7, 1.7);
+        scene.add(ring2);
+        
+        const ring3 = new THREE.Mesh(glowRingGeo, glowMat);
+        ring3.rotation.z = Math.PI / 1.5;
+        ring3.rotation.x = Math.PI / 4;
+        ring3.scale.set(2.4, 2.4, 2.4);
+        ring3.material.transparent = true;
+        ring3.material.opacity = 0.3;
+        scene.add(ring3);
+        
+        // --- Simple axis helper (discreet) ---
+        const axesHelper = new THREE.AxesHelper(5);
+        axesHelper.material.transparent = true;
+        axesHelper.material.opacity = 0.08;
+        scene.add(axesHelper);
+        
+        // A subtle grid floor for reference
+        const gridHelper = new THREE.GridHelper(12, 20, 0x88aaff, 0x335588);
+        gridHelper.position.y = -3.2;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.2;
+        scene.add(gridHelper);
+        
+        // --- Animation Loop ---
+        let time = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016; // approx delta
+            
+            // Update electron positions
+            electrons.forEach(e => {
+                e.angle += e.speed * 0.016;
+                if (e.angle > Math.PI * 2) e.angle -= Math.PI * 2;
+                const x = Math.cos(e.angle) * e.radius;
+                const z = Math.sin(e.angle) * e.radius;
+                e.mesh.position.set(x, e.yOffset, z);
+                // slight pulsation
+                const scale = 1 + Math.sin(time * 10) * 0.1;
+                e.mesh.scale.set(scale, scale, scale);
+            });
+            
+            // Update sparks (chaotic motion around orbitals)
+            sparks.forEach(sp => {
+                sp.angleX += sp.speed * 0.012;
+                sp.angleY += sp.speed * 0.009;
+                let x = 0, y = 0, z = 0;
+                if (sp.axis === 0) {
+                    x = Math.cos(sp.angleX) * sp.radius;
+                    z = Math.sin(sp.angleY) * sp.radius;
+                    y = Math.sin(sp.angleX) * 0.8;
+                } else if (sp.axis === 1) {
+                    y = Math.cos(sp.angleX) * sp.radius;
+                    z = Math.sin(sp.angleY) * sp.radius;
+                    x = Math.sin(sp.angleX) * 0.9;
+                } else {
+                    x = Math.cos(sp.angleX) * sp.radius;
+                    y = Math.sin(sp.angleY) * sp.radius;
+                    z = Math.sin(sp.angleX) * 0.9;
                 }
-            }
+                sp.mesh.position.set(x, y, z);
+            });
+            
+            // Animate rings rotation
+            ring1.rotation.z += 0.005;
+            ring2.rotation.x += 0.003;
+            ring2.rotation.y += 0.002;
+            ring3.rotation.x += 0.002;
+            ring3.rotation.z += 0.004;
+            
+            // Gentle pulsation of nucleus and corona
+            const pulse = 1 + Math.sin(time * 6) * 0.02;
+            nucleus.scale.set(pulse, pulse, pulse);
+            corona.scale.setScalar(1 + Math.sin(time * 4.5) * 0.03);
+            nucleusLight.intensity = 0.7 + Math.sin(time * 5) * 0.2;
+            
+            // rotate particle cloud slowly for dynamic feel
+            particleCloud.rotation.y += 0.001;
+            particleCloud.rotation.x += 0.0005;
+            
+            // update CSS2D labels rotation not needed, always facing camera
+            // update controls
+            controls.update(); // handles auto-rotate if enabled
+            
+            // render
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
         }
         
-        // Connections between particles
-        function drawConnections(offsetX, offsetY) {
-            for (let i=0; i<particles.length; i++) {
-                const p1 = particles[i];
-                const x1 = p1.x + offsetX * p1.z;
-                const y1 = p1.y + offsetY * p1.z;
-                for (let j=i+1; j<particles.length; j++) {
-                    const p2 = particles[j];
-                    const x2 = p2.x + offsetX * p2.z;
-                    const y2 = p2.y + offsetY * p2.z;
-                    const dx = x1 - x2;
-                    const dy = y1 - y2;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist < CONNECT_DIST) {
-                        const intensity = 1 - dist/CONNECT_DIST;
-                        const alpha = intensity * 0.55;
-                        const avgHue = (p1.hue + p2.hue)/2;
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.strokeStyle = `hsla(${avgHue}, 85%, 70%, ${alpha*0.85})`;
-                        ctx.lineWidth = 1.3 + intensity * 0.8;
-                        ctx.stroke();
-                    }
-                }
-            }
-        }
-        
-        // Background + nebula
-        function drawBackground(theme) {
-            const t = themes[theme];
-            const grad = ctx.createLinearGradient(0,0, width*0.6, height);
-            grad.addColorStop(0, t.bg1);
-            grad.addColorStop(1, t.bg2);
-            ctx.fillStyle = grad;
-            ctx.fillRect(0,0,width,height);
-            // floating aurora
-            ctx.globalCompositeOperation = 'lighter';
-            for (let i=0;i<4;i++) {
-                const time = Date.now() * 0.0008 + i;
-                const x = (Math.sin(time)*0.4+0.5)*width;
-                const y = (Math.cos(time*0.7)*0.3+0.5)*height;
-                const rad = width*0.3;
-                const grd = ctx.createRadialGradient(x,y,10,x,y,rad);
-                grd.addColorStop(0, `hsla(${t.lineHueBase + i*30}, 70%, 55%, 0.1)`);
-                grd.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = grd;
-                ctx.fillRect(0,0,width,height);
-            }
-            ctx.globalCompositeOperation = 'source-over';
-        }
-        
-        // Shooting stars
-        class ShootingStar {
-            constructor() {
-                this.reset();
-            }
-            reset() {
-                this.active = true;
-                this.x = Math.random() * width;
-                this.y = Math.random() * height * 0.4;
-                this.vx = (Math.random() * 5 + 8) * (Math.random() > 0.5 ? 1 : -1);
-                this.vy = Math.random() * 3 + 4;
-                this.size = Math.random() * 2.5 + 1.5;
-                this.tail = [];
-                this.life = 1.0;
-            }
-            update() {
-                if (!this.active) return;
-                this.tail.unshift({x:this.x, y:this.y});
-                if(this.tail.length > 12) this.tail.pop();
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.008;
-                if(this.x < -100 || this.x > width+100 || this.y > height+100 || this.life <= 0) {
-                    this.active = false;
-                }
-            }
-            draw(ctx) {
-                if(!this.active) return;
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                for(let i=0; i<this.tail.length; i++) {
-                    ctx.lineTo(this.tail[i].x, this.tail[i].y);
-                }
-                ctx.strokeStyle = `rgba(255, 220, 150, ${this.life*0.7})`;
-                ctx.lineWidth = this.size;
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size*0.9, 0, Math.PI*2);
-                ctx.fillStyle = `rgba(255, 240, 180, ${this.life})`;
-                ctx.fill();
-            }
-        }
-        
-        function initShootingStars(count=8) {
-            shootingStars = [];
-            for(let i=0;i<count;i++) {
-                let s = new ShootingStar();
-                s.active = false; // will be spawned randomly
-                shootingStars.push(s);
-            }
-        }
-        
-        function updateShootingStars() {
-            if(!shootingStarsActive) return;
-            for(let s of shootingStars) {
-                if(!s.active && Math.random() < 0.005) {
-                    s.reset();
-                }
-                if(s.active) s.update();
-            }
-        }
-        
-        function drawShootingStars() {
-            for(let s of shootingStars) {
-                if(s.active) s.draw(ctx);
-            }
-        }
-        
-        // Audio setup
-        async function initAudio() {
-            if(audioContext && microphone) return;
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                microphone = audioContext.createMediaStreamSource(stream);
-                const analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                microphone.connect(analyser);
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                function updateAudio() {
-                    if(audioActive && analyser) {
-                        analyser.getByteFrequencyData(dataArray);
-                        let avg = 0;
-                        for(let i=0;i<dataArray.length;i++) avg += dataArray[i];
-                        avg = avg / dataArray.length / 255;
-                        audioData[0] = Math.min(1, avg * 1.2);
-                    } else {
-                        audioData[0] = 0;
-                    }
-                    requestAnimationFrame(updateAudio);
-                }
-                updateAudio();
-                audioInitialized = true;
-                document.getElementById('statusMsg').innerHTML = '🎤 Audio ON | 1080p';
-            } catch(e) {
-                console.warn("mic error", e);
-                document.getElementById('statusMsg').innerHTML = '🎤 Mic denied | 1080p';
-                audioActive = false;
-            }
-        }
-        
-        // Gyroscope + parallax
-        function initGyro() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    if(!parallaxActive) return;
-                    gyroX = (e.gamma || 0) / 45;   // -45..45 deg -> -1..1
-                    gyroY = (e.beta || 0) / 45 - 0.5;
-                    gyroX = Math.min(0.8, Math.max(-0.8, gyroX));
-                    gyroY = Math.min(0.8, Math.max(-0.8, gyroY));
-                });
-            }
-        }
-        
-        // Particles initialization
-        function initParticles() {
-            particles = [];
-            for(let i=0;i<PARTICLE_COUNT;i++) {
-                const x = randomRange(50, width-50);
-                const y = randomRange(50, height-50);
-                const vx = randomRange(-0.6, 0.6);
-                const vy = randomRange(-0.6, 0.6);
-                const size = randomRange(2.5, 5.5);
-                let hue = randomRange(0,360);
-                const hueSpeed = randomRange(0.2,0.9) * (Math.random()>0.5?1:-1);
-                const z = randomRange(0.2,1.0);
-                particles.push(new Particle(x,y,vx,vy,size,hue,hueSpeed,z));
-            }
-        }
-        
-        function randomRange(min,max){ return min+Math.random()*(max-min); }
+        animate();
         
         // Resize handler
-        function resizeCanvas() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-            initParticles();
-            initShootingStars(6);
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        // Mouse / touch handlers
-        function handleMove(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width/rect.width;
-            const scaleY = canvas.height/rect.height;
-            let cx, cy;
-            if(e.touches) {
-                if(e.touches.length) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-                else return;
-            } else {
-                cx = e.clientX; cy = e.clientY;
-            }
-            mouseX = (cx - rect.left)*scaleX;
-            mouseY = (cy - rect.top)*scaleY;
-            mouseX = Math.min(width, Math.max(0, mouseX));
-            mouseY = Math.min(height, Math.max(0, mouseY));
-            mouseActive = true;
-        }
-        function handleLeave() { mouseActive = false; }
-        
-        // Animation loop
-        let lastTime = 0;
-        function animate(now) {
-            if(!canvas.isConnected) return;
-            // trail effect
-            ctx.fillStyle = `rgba(0,0,0,${TRAIL_FADE})`;
-            ctx.fillRect(0,0,width,height);
-            
-            // background
-            drawBackground(currentTheme);
-            
-            // get audio intensity
-            let audioIntensity = audioActive ? (audioData[0] || 0) : 0;
-            
-            // parallax offset from mouse + gyro
-            let offsetX = 0, offsetY = 0;
-            if(parallaxActive) {
-                let mouseNormX = (mouseX/width - 0.5)*2;
-                let mouseNormY = (mouseY/height - 0.5)*2;
-                offsetX = (mouseNormX * 25 + gyroX * 30);
-                offsetY = (mouseNormY * 25 + gyroY * 30);
-                offsetX = Math.min(35, Math.max(-35, offsetX));
-                offsetY = Math.min(35, Math.max(-35, offsetY));
-            }
-            
-            // update particles
-            for(let p of particles) {
-                p.update(mouseX, mouseY, mouseActive, drawMode, audioIntensity);
-            }
-            
-            // collisions
-            handleCollisions();
-            
-            // draw connections (with parallax offset)
-            drawConnections(offsetX, offsetY);
-            
-            // shooting stars
-            updateShootingStars();
-            drawShootingStars();
-            
-            // draw particles (with offset)
-            for(let p of particles) {
-                p.draw(ctx, offsetX, offsetY, currentTheme);
-            }
-            
-            // extra glow
-            ctx.globalCompositeOperation = 'lighter';
-            for(let p of particles) {
-                if(p.size>3.2){
-                    ctx.beginPath();
-                    ctx.arc(p.x+offsetX*p.z, p.y+offsetY*p.z, p.size*0.7,0,Math.PI*2);
-                    ctx.fillStyle = `hsla(${p.hue}, 85%, 65%, 0.18)`;
-                    ctx.fill();
-                }
-            }
-            ctx.globalCompositeOperation = 'source-over';
-            
-            requestAnimationFrame(animate);
-        }
-        
-        // UI event binding
-        function bindUI() {
-            document.getElementById('audioToggle').onclick = () => {
-                if(!audioInitialized) initAudio();
-                audioActive = !audioActive;
-                document.getElementById('audioToggle').innerText = audioActive ? '🎵 Audio On' : '🎵 Audio Off';
-                document.getElementById('audioToggle').classList.toggle('active', audioActive);
-            };
-            document.getElementById('drawToggle').onclick = () => {
-                drawMode = !drawMode;
-                document.getElementById('drawToggle').classList.toggle('active', drawMode);
-                document.getElementById('drawToggle').innerText = drawMode ? '✏️ Draw ON' : '✏️ Draw Mode';
-            };
-            document.getElementById('starsToggle').onclick = () => {
-                shootingStarsActive = !shootingStarsActive;
-                document.getElementById('starsToggle').classList.toggle('active', shootingStarsActive);
-                document.getElementById('starsToggle').innerText = shootingStarsActive ? '🌠 Stars ON' : '🌠 Stars OFF';
-            };
-            document.getElementById('parallaxToggle').onclick = () => {
-                parallaxActive = !parallaxActive;
-                document.getElementById('parallaxToggle').classList.toggle('active', parallaxActive);
-                if(!parallaxActive) { gyroX=0; gyroY=0; }
-            };
-            document.querySelectorAll('.theme-btn').forEach(btn => {
-                btn.onclick = () => {
-                    currentTheme = btn.dataset.theme;
-                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                };
-            });
-            // default active theme button
-            document.querySelector('.theme-btn[data-theme="neon"]').classList.add('active');
-        }
-        
-        // start everything
-        window.addEventListener('resize', resizeCanvas);
-        canvas.addEventListener('mousemove', handleMove);
-        canvas.addEventListener('mouseleave', handleLeave);
-        canvas.addEventListener('touchmove', handleMove, {passive:false});
-        canvas.addEventListener('touchstart', handleMove);
-        canvas.addEventListener('touchend', handleLeave);
-        resizeCanvas();
-        bindUI();
-        initGyro();
-        requestAnimationFrame(animate);
-    })();
-</script>
+        // small intro console greeting
+        console.log('3D Atom Visualization Loaded | Nucleus, Energy Levels, Sublevels, Orbitals');
+    </script>
 </body>
 </html>
